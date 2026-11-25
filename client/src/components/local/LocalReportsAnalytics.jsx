@@ -35,7 +35,8 @@ import {
   compareYM, 
   isMachineRentedInMonth, 
   paymentBelongsToYM,
-  calculateCustomerArrearsBreakdown
+  calculateCustomerArrearsBreakdown,
+  getRentForMonth
 } from './LocalCustomerDirectory';
 
 export function LocalReportsAnalytics({
@@ -193,7 +194,7 @@ export function LocalReportsAnalytics({
         if (selectedCustomerId && c.id !== selectedCustomerId) return;
         (c.rentals || []).forEach(r => {
           if (isMachineRentedInMonth(r, mObj.ym)) {
-            expectedBilling += Number(r.rentRate) || 0;
+            expectedBilling += getRentForMonth(r, mObj.ym);
             activeMachinesCount++;
           }
         });
@@ -243,7 +244,7 @@ export function LocalReportsAnalytics({
 
       // Active machines this cycle
       const activeRentals = (cust.rentals || []).filter(r => isMachineRentedInMonth(r, activeYM));
-      const currentMonthRent = activeRentals.reduce((sum, r) => sum + (Number(r.rentRate) || 0), 0);
+      const currentMonthRent = activeRentals.reduce((sum, r) => sum + getRentForMonth(r, activeYM), 0);
       const currentMonthPaid = (payments || []).filter(p => p.customerId === cust.id && paymentBelongsToYM(p, activeYM))
         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
@@ -1319,39 +1320,39 @@ export function LocalReportsAnalytics({
             </div>
 
             {/* Printable Document Body */}
-            <div id="printable-document" className="p-6 sm:p-10 space-y-6 text-slate-900 bg-white">
+            <div id="printable-document" className="p-6 sm:p-10 space-y-6 text-slate-900 bg-white text-sm">
               
               {/* Header */}
               <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
                 <div className="flex items-center gap-3">
-                  <CompanyLogo className="w-14 h-14" />
+                  <CompanyLogo className="w-16 h-16" />
                   <div>
-                    <h1 className="font-display font-black text-2xl uppercase tracking-tight text-slate-900">
+                    <h1 className="font-display font-black text-3xl uppercase tracking-tight text-slate-900">
                       {cInfo.name}
                     </h1>
-                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                    <div className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                       {cInfo.taglineEn}
                     </div>
-                    <div className="text-[11px] text-slate-600 mt-1">
+                    <div className="text-xs text-slate-600 mt-1">
                       {cInfo.addressEn}
                     </div>
-                    <div className="text-[10px] text-slate-500 font-mono">
+                    <div className="text-xs text-slate-500 font-mono">
                       Reg No: {cInfo.regNo} • Hotline: {cInfo.hotline} • Email: {cInfo.email}
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right font-mono">
-                  <div className="text-xs uppercase font-bold text-emerald-700 tracking-wider">
+                  <div className="text-sm uppercase font-bold text-emerald-700 tracking-wider">
                     OFFICIAL REPORT
                   </div>
-                  <div className="text-lg font-black text-slate-900 uppercase">
+                  <div className="text-xl font-black text-slate-900 uppercase">
                     {activeReportTab.replace(/_/g, ' ')}
                   </div>
-                  <div className="text-[11px] text-slate-600 mt-1">
+                  <div className="text-xs text-slate-600 mt-1">
                     Date Range: {startDate} to {endDate}
                   </div>
-                  <div className="text-[10px] text-slate-500">
+                  <div className="text-xs text-slate-500">
                     Generated: {new Date().toLocaleString()}
                   </div>
                 </div>
@@ -1360,39 +1361,39 @@ export function LocalReportsAnalytics({
               {/* Printable Table Content based on active tab */}
               {activeReportTab === 'daily_income' && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between font-mono text-xs">
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between font-mono text-sm">
                     <div><strong>Total Income Collected:</strong> {formatLKR(dailyIncomeData.totalCollected)}</div>
                     <div><strong>Transactions:</strong> {dailyIncomeData.totalTransactions}</div>
                     <div><strong>Daily Average:</strong> {formatLKR(dailyIncomeData.avgPerDay)}</div>
                   </div>
 
-                  <table className="w-full text-left text-xs border border-slate-200">
-                    <thead className="bg-slate-100 uppercase text-[10px] font-bold border-b border-slate-200">
+                  <table className="w-full text-left text-sm border border-slate-200">
+                    <thead className="bg-slate-100 uppercase text-xs font-bold border-b border-slate-200">
                       <tr>
-                        <th className="p-2">Date</th>
-                        <th className="p-2">Garment Client</th>
-                        <th className="p-2">Method</th>
-                        <th className="p-2">Ref No</th>
-                        <th className="p-2">Cycle</th>
-                        <th className="p-2 text-right">Amount (LKR)</th>
+                        <th className="p-2.5">Date</th>
+                        <th className="p-2.5">Garment Client</th>
+                        <th className="p-2.5">Method</th>
+                        <th className="p-2.5">Ref No</th>
+                        <th className="p-2.5">Cycle</th>
+                        <th className="p-2.5 text-right">Amount (LKR)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    <tbody className="divide-y divide-slate-100 font-mono text-[13px]">
                       {dailyIncomeData.flatList.map(p => (
                         <tr key={p.id}>
-                          <td className="p-2 font-bold">{p.date}</td>
-                          <td className="p-2 font-sans font-bold">{p.customerName}</td>
-                          <td className="p-2">{p.method}</td>
-                          <td className="p-2">{p.refNo}</td>
-                          <td className="p-2">{p.month}</td>
-                          <td className="p-2 text-right font-bold text-emerald-800">{formatLKR(p.amount)}</td>
+                          <td className="p-2.5 font-bold">{p.date}</td>
+                          <td className="p-2.5 font-sans font-bold">{p.customerName}</td>
+                          <td className="p-2.5">{p.method}</td>
+                          <td className="p-2.5">{p.refNo}</td>
+                          <td className="p-2.5">{p.month}</td>
+                          <td className="p-2.5 text-right font-bold text-emerald-800">{formatLKR(p.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot className="bg-slate-50 border-t-2 border-slate-300 font-mono font-bold">
                       <tr>
-                        <td colSpan={5} className="p-2 text-right uppercase">Total Collected:</td>
-                        <td className="p-2 text-right text-emerald-900 text-sm">{formatLKR(dailyIncomeData.totalCollected)}</td>
+                        <td colSpan={5} className="p-2.5 text-right uppercase">Total Collected:</td>
+                        <td className="p-2.5 text-right text-emerald-900 text-base">{formatLKR(dailyIncomeData.totalCollected)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1401,36 +1402,36 @@ export function LocalReportsAnalytics({
 
               {activeReportTab === 'monthly_income' && (
                 <div className="space-y-4">
-                  <table className="w-full text-left text-xs border border-slate-200">
-                    <thead className="bg-slate-100 uppercase text-[10px] font-bold border-b border-slate-200">
+                  <table className="w-full text-left text-sm border border-slate-200">
+                    <thead className="bg-slate-100 uppercase text-xs font-bold border-b border-slate-200">
                       <tr>
-                        <th className="p-2">Billing Cycle</th>
-                        <th className="p-2 text-center">Active Units</th>
-                        <th className="p-2 text-right">Expected Rent</th>
-                        <th className="p-2 text-right">Actual Collected</th>
-                        <th className="p-2 text-center">Recovery (%)</th>
-                        <th className="p-2 text-right">Variance</th>
+                        <th className="p-2.5">Billing Cycle</th>
+                        <th className="p-2.5 text-center">Active Units</th>
+                        <th className="p-2.5 text-right">Expected Rent</th>
+                        <th className="p-2.5 text-right">Actual Collected</th>
+                        <th className="p-2.5 text-center">Recovery (%)</th>
+                        <th className="p-2.5 text-right">Variance</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    <tbody className="divide-y divide-slate-100 font-mono text-[13px]">
                       {monthlyIncomeData.rows.map((r, i) => (
                         <tr key={i}>
-                          <td className="p-2 font-bold font-sans">{r.month}</td>
-                          <td className="p-2 text-center">{r.activeMachinesCount}</td>
-                          <td className="p-2 text-right">{formatLKR(r.expectedBilling)}</td>
-                          <td className="p-2 text-right font-bold text-emerald-800">{formatLKR(r.collectedAmount)}</td>
-                          <td className="p-2 text-center font-bold">{r.collectionRate}%</td>
-                          <td className="p-2 text-right font-bold">{formatLKR(r.variance)}</td>
+                          <td className="p-2.5 font-bold font-sans">{r.month}</td>
+                          <td className="p-2.5 text-center">{r.activeMachinesCount}</td>
+                          <td className="p-2.5 text-right">{formatLKR(r.expectedBilling)}</td>
+                          <td className="p-2.5 text-right font-bold text-emerald-800">{formatLKR(r.collectedAmount)}</td>
+                          <td className="p-2.5 text-center font-bold">{r.collectionRate}%</td>
+                          <td className="p-2.5 text-right font-bold">{formatLKR(r.variance)}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot className="bg-slate-50 border-t-2 border-slate-300 font-mono font-bold">
                       <tr>
-                        <td colSpan={2} className="p-2 uppercase">Totals:</td>
-                        <td className="p-2 text-right">{formatLKR(monthlyIncomeData.totalExpected)}</td>
-                        <td className="p-2 text-right text-emerald-900 text-sm">{formatLKR(monthlyIncomeData.totalCollected)}</td>
-                        <td className="p-2 text-center">{monthlyIncomeData.overallRate}%</td>
-                        <td className="p-2 text-right">{formatLKR(monthlyIncomeData.totalCollected - monthlyIncomeData.totalExpected)}</td>
+                        <td colSpan={2} className="p-2.5 uppercase">Totals:</td>
+                        <td className="p-2.5 text-right">{formatLKR(monthlyIncomeData.totalExpected)}</td>
+                        <td className="p-2.5 text-right text-emerald-900 text-base">{formatLKR(monthlyIncomeData.totalCollected)}</td>
+                        <td className="p-2.5 text-center">{monthlyIncomeData.overallRate}%</td>
+                        <td className="p-2.5 text-right">{formatLKR(monthlyIncomeData.totalCollected - monthlyIncomeData.totalExpected)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1439,43 +1440,43 @@ export function LocalReportsAnalytics({
 
               {activeReportTab === 'outstanding' && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex justify-between font-mono text-xs">
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex justify-between font-mono text-sm">
                     <div><strong>Total Portfolio Balance Due:</strong> {formatLKR(outstandingData.totalOutstanding)}</div>
                     <div><strong>Prior Arrears:</strong> {formatLKR(outstandingData.totalPriorArrears)}</div>
                     <div><strong>Clients with Due:</strong> {outstandingData.clientsWithDueCount}</div>
                   </div>
 
-                  <table className="w-full text-left text-xs border border-slate-200">
-                    <thead className="bg-slate-100 uppercase text-[10px] font-bold border-b border-slate-200">
+                  <table className="w-full text-left text-sm border border-slate-200">
+                    <thead className="bg-slate-100 uppercase text-xs font-bold border-b border-slate-200">
                       <tr>
-                        <th className="p-2">Code</th>
-                        <th className="p-2">Client Name</th>
-                        <th className="p-2">Phone</th>
-                        <th className="p-2 text-center">Fleet</th>
-                        <th className="p-2 text-right">Cycle Rent</th>
-                        <th className="p-2 text-right">Cycle Paid</th>
-                        <th className="p-2 text-right">Prior Arrears</th>
-                        <th className="p-2 text-right">Net Due (LKR)</th>
+                        <th className="p-2.5">Code</th>
+                        <th className="p-2.5">Client Name</th>
+                        <th className="p-2.5">Phone</th>
+                        <th className="p-2.5 text-center">Fleet</th>
+                        <th className="p-2.5 text-right">Cycle Rent</th>
+                        <th className="p-2.5 text-right">Cycle Paid</th>
+                        <th className="p-2.5 text-right">Prior Arrears</th>
+                        <th className="p-2.5 text-right">Net Due (LKR)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    <tbody className="divide-y divide-slate-100 font-mono text-[13px]">
                       {outstandingData.rows.map(c => (
                         <tr key={c.customerId}>
-                          <td className="p-2 font-bold">{c.customerCode}</td>
-                          <td className="p-2 font-sans font-bold">{c.customerName}</td>
-                          <td className="p-2">{c.phone}</td>
-                          <td className="p-2 text-center">{c.activeMachinesCount}</td>
-                          <td className="p-2 text-right">{formatLKR(c.currentMonthRent)}</td>
-                          <td className="p-2 text-right">{formatLKR(c.currentMonthPaid)}</td>
-                          <td className="p-2 text-right font-bold text-amber-800">{formatLKR(c.netPriorArrears)}</td>
-                          <td className="p-2 text-right font-bold text-rose-800">{formatLKR(c.totalBalanceDue)}</td>
+                          <td className="p-2.5 font-bold">{c.customerCode}</td>
+                          <td className="p-2.5 font-sans font-bold">{c.customerName}</td>
+                          <td className="p-2.5">{c.phone}</td>
+                          <td className="p-2.5 text-center">{c.activeMachinesCount}</td>
+                          <td className="p-2.5 text-right">{formatLKR(c.currentMonthRent)}</td>
+                          <td className="p-2.5 text-right">{formatLKR(c.currentMonthPaid)}</td>
+                          <td className="p-2.5 text-right font-bold text-amber-800">{formatLKR(c.netPriorArrears)}</td>
+                          <td className="p-2.5 text-right font-bold text-rose-800">{formatLKR(c.totalBalanceDue)}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot className="bg-slate-50 border-t-2 border-slate-300 font-mono font-bold">
                       <tr>
-                        <td colSpan={7} className="p-2 text-right uppercase">Total Net Balance Due:</td>
-                        <td className="p-2 text-right text-rose-900 text-sm">{formatLKR(outstandingData.totalOutstanding)}</td>
+                        <td colSpan={7} className="p-2.5 text-right uppercase">Total Net Balance Due:</td>
+                        <td className="p-2.5 text-right text-rose-900 text-base">{formatLKR(outstandingData.totalOutstanding)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1484,34 +1485,34 @@ export function LocalReportsAnalytics({
 
               {activeReportTab === 'overdue_customers' && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex justify-between font-mono text-xs">
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex justify-between font-mono text-sm">
                     <div><strong>Total Default Overdue:</strong> {formatLKR(overdueCustomersData.totalOverdueAmount)}</div>
                     <div><strong>Critical Risk:</strong> {overdueCustomersData.criticalCount}</div>
                     <div><strong>High Risk:</strong> {overdueCustomersData.highCount}</div>
                   </div>
 
-                  <table className="w-full text-left text-xs border border-slate-200">
-                    <thead className="bg-slate-100 uppercase text-[10px] font-bold border-b border-slate-200">
+                  <table className="w-full text-left text-sm border border-slate-200">
+                    <thead className="bg-slate-100 uppercase text-xs font-bold border-b border-slate-200">
                       <tr>
-                        <th className="p-2">Rating</th>
-                        <th className="p-2">Code</th>
-                        <th className="p-2">Client Name</th>
-                        <th className="p-2">Phone</th>
-                        <th className="p-2 text-center">Fleet</th>
-                        <th className="p-2 text-right">Overdue (LKR)</th>
-                        <th className="p-2">Last Payment</th>
+                        <th className="p-2.5">Rating</th>
+                        <th className="p-2.5">Code</th>
+                        <th className="p-2.5">Client Name</th>
+                        <th className="p-2.5">Phone</th>
+                        <th className="p-2.5 text-center">Fleet</th>
+                        <th className="p-2.5 text-right">Overdue (LKR)</th>
+                        <th className="p-2.5">Last Payment</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    <tbody className="divide-y divide-slate-100 font-mono text-[13px]">
                       {overdueCustomersData.list.map(c => (
                         <tr key={c.customerId}>
-                          <td className="p-2 font-bold text-rose-700">{c.severity}</td>
-                          <td className="p-2">{c.customerCode}</td>
-                          <td className="p-2 font-sans font-bold">{c.customerName}</td>
-                          <td className="p-2">{c.phone}</td>
-                          <td className="p-2 text-center">{c.activeMachinesCount}</td>
-                          <td className="p-2 text-right font-bold text-rose-800">{formatLKR(c.totalBalanceDue)}</td>
-                          <td className="p-2">{c.lastPaymentDate}</td>
+                          <td className="p-2.5 font-bold text-rose-700">{c.severity}</td>
+                          <td className="p-2.5">{c.customerCode}</td>
+                          <td className="p-2.5 font-sans font-bold">{c.customerName}</td>
+                          <td className="p-2.5">{c.phone}</td>
+                          <td className="p-2.5 text-center">{c.activeMachinesCount}</td>
+                          <td className="p-2.5 text-right font-bold text-rose-800">{formatLKR(c.totalBalanceDue)}</td>
+                          <td className="p-2.5">{c.lastPaymentDate}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1521,31 +1522,31 @@ export function LocalReportsAnalytics({
 
               {activeReportTab === 'machine_utilization' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-4 gap-2 p-3 bg-purple-50 border border-purple-200 rounded-xl font-mono text-xs text-center">
+                  <div className="grid grid-cols-4 gap-2 p-3.5 bg-purple-50 border border-purple-200 rounded-xl font-mono text-sm text-center">
                     <div><strong>Total Fleet:</strong> {machineUtilizationData.totalFleetUnits} Units</div>
                     <div><strong>Deployed:</strong> {machineUtilizationData.totalDeployedUnits} Units</div>
                     <div><strong>Yard Stock:</strong> {machineUtilizationData.availableYardUnits} Units</div>
                     <div><strong>Utilization:</strong> {machineUtilizationData.overallUtilizationRate}%</div>
                   </div>
 
-                  <table className="w-full text-left text-xs border border-slate-200">
-                    <thead className="bg-slate-100 uppercase text-[10px] font-bold border-b border-slate-200">
+                  <table className="w-full text-left text-sm border border-slate-200">
+                    <thead className="bg-slate-100 uppercase text-xs font-bold border-b border-slate-200">
                       <tr>
-                        <th className="p-2">Category</th>
-                        <th className="p-2 text-center">Total Units</th>
-                        <th className="p-2 text-center">Deployed</th>
-                        <th className="p-2 text-center">Available Stock</th>
-                        <th className="p-2 text-right">Utilization (%)</th>
+                        <th className="p-2.5">Category</th>
+                        <th className="p-2.5 text-center">Total Units</th>
+                        <th className="p-2.5 text-center">Deployed</th>
+                        <th className="p-2.5 text-center">Available Stock</th>
+                        <th className="p-2.5 text-right">Utilization (%)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    <tbody className="divide-y divide-slate-100 font-mono text-[13px]">
                       {machineUtilizationData.categoryBreakdown.map((cat, i) => (
                         <tr key={i}>
-                          <td className="p-2 font-bold font-sans">{cat.category}</td>
-                          <td className="p-2 text-center">{cat.total}</td>
-                          <td className="p-2 text-center font-bold text-emerald-800">{cat.deployed}</td>
-                          <td className="p-2 text-center text-slate-600">{cat.available}</td>
-                          <td className="p-2 text-right font-bold text-purple-900">{cat.rate}%</td>
+                          <td className="p-2.5 font-bold font-sans">{cat.category}</td>
+                          <td className="p-2.5 text-center">{cat.total}</td>
+                          <td className="p-2.5 text-center font-bold text-emerald-800">{cat.deployed}</td>
+                          <td className="p-2.5 text-center text-slate-600">{cat.available}</td>
+                          <td className="p-2.5 text-right font-bold text-purple-900">{cat.rate}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1555,20 +1556,20 @@ export function LocalReportsAnalytics({
 
               {activeReportTab === 'profit_loss' && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 font-mono text-xs">
-                    <div className="flex justify-between border-b pb-1">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 font-mono text-sm">
+                    <div className="flex justify-between border-b pb-1.5">
                       <span>Gross Rental Collections Received:</span>
                       <strong className="text-emerald-800">{formatLKR(profitExpenseData.totalIncome)}</strong>
                     </div>
-                    <div className="flex justify-between border-b pb-1">
+                    <div className="flex justify-between border-b pb-1.5">
                       <span>Yard & Technician Operating Expenses:</span>
                       <strong className="text-rose-800">- {formatLKR(profitExpenseData.totalExpenses)}</strong>
                     </div>
-                    <div className="flex justify-between border-b pb-1">
+                    <div className="flex justify-between border-b pb-1.5">
                       <span>Partner Sub-Lease Payables:</span>
                       <strong className="text-amber-800">- {formatLKR(profitExpenseData.totalPartnerLeasePaid)}</strong>
                     </div>
-                    <div className="flex justify-between pt-1 font-bold text-sm">
+                    <div className="flex justify-between pt-1.5 font-bold text-base">
                       <span>Net Operating Profit / (Loss):</span>
                       <span className={profitExpenseData.netProfit >= 0 ? 'text-teal-900 font-black' : 'text-rose-900 font-black'}>
                         {formatLKR(profitExpenseData.netProfit)} ({profitExpenseData.profitMargin}%)
@@ -1579,21 +1580,21 @@ export function LocalReportsAnalytics({
               )}
 
               {/* Authorizations and Signatures Block */}
-              <div className="grid grid-cols-3 gap-6 pt-12 border-t border-slate-300 font-mono text-xs">
+              <div className="grid grid-cols-3 gap-6 pt-12 border-t border-slate-300 font-mono text-sm">
                 <div className="text-center">
                   <div className="border-b border-slate-400 pb-8"></div>
                   <div className="font-bold text-slate-800 mt-2">Prepared By</div>
-                  <div className="text-[10px] text-slate-500">Accounts & Ledger Executive</div>
+                  <div className="text-xs text-slate-500">Accounts & Ledger Executive</div>
                 </div>
                 <div className="text-center">
                   <div className="border-b border-slate-400 pb-8"></div>
                   <div className="font-bold text-slate-800 mt-2">Checked & Verified</div>
-                  <div className="text-[10px] text-slate-500">Central Yard Operations Manager</div>
+                  <div className="text-xs text-slate-500">Central Yard Operations Manager</div>
                 </div>
                 <div className="text-center">
                   <div className="border-b border-slate-400 pb-8"></div>
                   <div className="font-bold text-slate-800 mt-2">Authorized Signatory</div>
-                  <div className="text-[10px] text-slate-500">Managing Director / Partner</div>
+                  <div className="text-xs text-slate-500">Managing Director / Partner</div>
                 </div>
               </div>
 

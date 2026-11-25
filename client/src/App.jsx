@@ -41,7 +41,7 @@ import { ChinaImportModule } from './components/global/ChinaImport/ChinaImportMo
 // Local Components & Modals
 import { LocalDashboard } from './components/local/LocalDashboard';
 import { LocalMachineryMaster } from './components/local/LocalMachineryMaster';
-import { LocalCustomerDirectory, isMachineRentedInMonth, getYearMonth, paymentBelongsToYM } from './components/local/LocalCustomerDirectory';
+import { LocalCustomerDirectory, isMachineRentedInMonth, getYearMonth, paymentBelongsToYM, getRentForMonth } from './components/local/LocalCustomerDirectory';
 import { LocalPaymentsLedger } from './components/local/LocalPaymentsLedger';
 import { LocalReturnsWorkflow } from './components/local/LocalReturnsWorkflow';
 import { LocalExpensesLedger } from './components/local/LocalExpensesLedger';
@@ -504,7 +504,7 @@ export default function App() {
         totalActiveMachines += activeRentals.length;
       }
 
-      const clientMonthlyRent = activeRentals.reduce((s, r) => s + (Number(r.rentRate) || 0), 0);
+      const clientMonthlyRent = activeRentals.reduce((s, r) => s + getRentForMonth(r, activeYM), 0);
       totalMonthlyIncome += clientMonthlyRent;
 
       // Calculate past arrears
@@ -513,7 +513,7 @@ export default function App() {
         for (let i = 0; i < mIdx; i++) {
           const prevMonth = allMonths[i];
           const prevYM = getYearMonth(prevMonth);
-          const prevRent = (c.rentals || []).filter(r => isMachineRentedInMonth(r, prevYM)).reduce((s, r) => s + (Number(r.rentRate) || 0), 0);
+          const prevRent = (c.rentals || []).filter(r => isMachineRentedInMonth(r, prevYM)).reduce((s, r) => s + getRentForMonth(r, prevYM), 0);
           const prevPaid = (localPayments || []).filter(p => p.customerId === c.id && paymentBelongsToYM(p, prevYM))
             .reduce((s, p) => s + (Number(p.amount) || 0), 0);
           prevBal = Math.max(0, prevBal + prevRent - prevPaid);

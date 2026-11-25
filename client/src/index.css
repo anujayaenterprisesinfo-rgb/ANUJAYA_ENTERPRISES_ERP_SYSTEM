@@ -140,9 +140,48 @@
     border: none !important;
     border-radius: 0 !important;
     display: block !important;
-    font-size: 10pt !important;
-    line-height: 1.4 !important;
+    font-size: 11.5pt !important;
+    line-height: 1.48 !important;
     z-index: 999999 !important;
+  }
+
+  /* --- Ensure comfortable, clearly legible typography on A4 prints --- */
+  #printable-document .text-\[9px\],
+  #printable-document .text-\[10px\] {
+    font-size: 9.5pt !important;
+    line-height: 1.35 !important;
+  }
+  #printable-document .text-\[11px\] {
+    font-size: 10.5pt !important;
+    line-height: 1.4 !important;
+  }
+  #printable-document .text-xs {
+    font-size: 11pt !important;
+    line-height: 1.45 !important;
+  }
+  #printable-document .text-sm {
+    font-size: 12pt !important;
+    line-height: 1.45 !important;
+  }
+  #printable-document .text-base {
+    font-size: 13.5pt !important;
+    line-height: 1.4 !important;
+  }
+  #printable-document .text-lg {
+    font-size: 15pt !important;
+    line-height: 1.35 !important;
+  }
+  #printable-document .text-xl {
+    font-size: 17pt !important;
+    line-height: 1.3 !important;
+  }
+  #printable-document .text-2xl {
+    font-size: 20pt !important;
+    line-height: 1.25 !important;
+  }
+  #printable-document .text-3xl {
+    font-size: 24pt !important;
+    line-height: 1.2 !important;
   }
 
   /* --- Tables: clean page breaking --- */

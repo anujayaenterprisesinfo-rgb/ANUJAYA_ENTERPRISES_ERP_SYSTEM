@@ -9,7 +9,10 @@ import {
   compareYM, 
   paymentBelongsToYM,
   calculateCustomerArrearsBreakdown,
-  isMachineRentedInMonth
+  isMachineRentedInMonth,
+  getRentForMonth,
+  getPartnerRentForMonth,
+  getProrationDetails
 } from './LocalCustomerDirectory';
 
 export function LocalDocumentsModal({
@@ -35,6 +38,7 @@ export function LocalDocumentsModal({
     returnItem, 
     balanceDue, 
     month, 
+    activeMonth: passedActiveMonth,
     payments = [], 
     arrearsData: passedArrearsData, 
     singleRental, 
@@ -100,8 +104,10 @@ export function LocalDocumentsModal({
   }, [customer]);
 
   // Arrears Data calculation for Invoice & Statement
-  const activeInvoiceMonth = month || "August 2026";
+  const activeInvoiceMonth = month || passedActiveMonth || `${MONTH_NAMES[new Date().getMonth()]} ${new Date().getFullYear()}`;
   const activeInvoiceYM = useMemo(() => getYearMonth(activeInvoiceMonth), [activeInvoiceMonth]);
+  const settlementMonthStr = meta?.cycleMonth || month || activeInvoiceMonth;
+  const settlementYM = useMemo(() => getYearMonth(settlementMonthStr), [settlementMonthStr]);
 
   const arrearsData = useMemo(() => {
     if (passedArrearsData) return passedArrearsData;
@@ -118,8 +124,8 @@ export function LocalDocumentsModal({
   }, [customer, activeInvoiceYM]);
 
   const currentMonthRent = useMemo(() => {
-    return invoiceRentals.reduce((sum, r) => sum + (Number(r.rentRate) || 0), 0);
-  }, [invoiceRentals]);
+    return invoiceRentals.reduce((sum, r) => sum + getRentForMonth(r, activeInvoiceYM), 0);
+  }, [invoiceRentals, activeInvoiceYM]);
 
   const currentMonthPaid = useMemo(() => {
     if (!customer) return 0;
@@ -213,30 +219,30 @@ export function LocalDocumentsModal({
         </div>
 
         {/* Printable Document Body */}
-        <div id="printable-document" className="p-4 sm:p-8 lg:p-12 space-y-6 text-slate-900 bg-white overflow-x-auto">
+        <div id="printable-document" className="p-5 sm:p-8 lg:p-10 space-y-6 text-slate-900 bg-white overflow-x-auto text-sm">
           
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b-2 border-slate-900 pb-5">
             <div className="flex items-center gap-3 sm:gap-4">
-              <CompanyLogo className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0" />
+              <CompanyLogo className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0" />
               <div>
-                <h1 className="font-display font-black text-lg sm:text-2xl uppercase tracking-tight text-slate-900">
+                <h1 className="font-display font-black text-xl sm:text-3xl uppercase tracking-tight text-slate-900">
                   {cInfo.name}
                 </h1>
-                <div className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                <div className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                   {docLang === 'si' ? cInfo.taglineSi : cInfo.taglineEn}
                 </div>
-                <div className="text-[11px] text-slate-600 mt-1">
+                <div className="text-xs text-slate-600 mt-1">
                   {docLang === 'si' ? cInfo.addressSi : cInfo.addressEn}
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono">
+                <div className="text-xs text-slate-500 font-mono">
                   Reg No: {cInfo.regNo} • Hotline: {cInfo.hotline} • Email: {cInfo.email}
                 </div>
               </div>
             </div>
 
             <div className="text-left sm:text-right font-mono sm:ml-auto">
-              <div className="text-xs uppercase font-bold text-slate-500 tracking-wider">
+              <div className="text-sm uppercase font-bold text-slate-500 tracking-wider">
                 {type === 'STATEMENT' ? 'STATEMENT OF ACCOUNT' :
                  type === 'AGREEMENT' ? 'RENTAL LEASE AGREEMENT' :
                  type === 'DELIVERY' ? (singleRental ? 'INDIVIDUAL DELIVERY NOTE' : 'MASTER DELIVERY NOTE') :
@@ -245,7 +251,7 @@ export function LocalDocumentsModal({
                  type === 'PARTNER_PAYMENT_VOUCHER' ? 'PARTNER PAYMENT SETTLEMENT VOUCHER' :
                  (type || 'DOCUMENT').replace(/_/g, ' ')}
               </div>
-              <div className="text-lg font-black text-slate-900 mt-0.5">
+              <div className="text-xl font-black text-slate-900 mt-0.5">
                 {type === 'RECEIPT' ? (payment?.refNo || payment?.id) :
                  type === 'QUOTATION' ? quotation?.quoteNo :
                  type === 'RETURN' ? (meta?.slipNo || 'RET-YARD') :
@@ -258,7 +264,7 @@ export function LocalDocumentsModal({
                  type === 'PARTNER_PAYMENT_VOUCHER' ? `PV-${partner?.code || 'PTR'}-${(payment?.refNo || payment?.id || Date.now().toString().slice(-4))}` :
                  `${customer?.code || partner?.code || 'DOC'}-${Date.now().toString().slice(-5)}`}
               </div>
-              <div className="text-xs text-slate-600 mt-1">
+              <div className="text-sm text-slate-600 mt-1">
                 Date: {payment?.date || meta?.returnDate || quotation?.date || new Date().toISOString().slice(0, 10)}
               </div>
               <div className="mt-2">
@@ -270,35 +276,35 @@ export function LocalDocumentsModal({
           {/* ================= 1. MONTHLY RENT INVOICE ================= */}
           {type === 'INVOICE' && customer && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-sm bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Invoiced To:</span>
-                  <div className="font-extrabold text-sm text-slate-900 font-sans">{customer.name}</div>
+                  <span className="text-xs font-bold text-slate-500 uppercase font-mono block">Invoiced To:</span>
+                  <div className="font-extrabold text-base text-slate-900 font-sans">{customer.name}</div>
                   <div className="text-slate-600 font-mono">Code: {customer.code} • Contact: {customer.phone || 'No Phone'}</div>
                   <div className="text-slate-600">{customer.address || 'Sri Lanka'}</div>
                 </div>
                 <div className="sm:text-right font-mono">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Billing Period & Cycle:</span>
-                  <div className="font-black text-sm text-sky-800">{activeInvoiceMonth}</div>
-                  <div className="text-[11px] text-slate-600">Standard Payment Terms: Due by 5th</div>
-                  <div className="text-[10px] text-emerald-700 font-bold">Western Province Fleet Consortium</div>
+                  <span className="text-xs font-bold text-slate-500 uppercase block">Billing Period & Cycle:</span>
+                  <div className="font-black text-base text-sky-800">{activeInvoiceMonth}</div>
+                  <div className="text-xs text-slate-600">Standard Payment Terms: Due by 5th</div>
+                  <div className="text-xs text-emerald-700 font-bold">Western Province Fleet Consortium</div>
                 </div>
               </div>
 
               {/* Machinery Fleet Table with Start Date */}
               <div>
-                <div className="text-xs font-bold uppercase font-mono text-slate-700 mb-2">
+                <div className="text-sm font-bold uppercase font-mono text-slate-700 mb-2">
                   Active Machinery Fleet Charges for {activeInvoiceMonth} ({invoiceRentals.length} Machines Invoiced)
                 </div>
                 <div className="overflow-x-auto rounded-xl border border-slate-300">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-700 uppercase font-mono text-[10px] border-b border-slate-300">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100 text-slate-700 uppercase font-mono text-xs border-b border-slate-300">
                     <tr>
                       <th className="p-3">Code</th>
                       <th className="p-3">Machinery Fleet Description</th>
                       <th className="p-3">Tracked Serial (SN)</th>
                       <th className="p-3">Rental Start Date</th>
-                      <th className="p-3 text-right">Agreed Monthly Hire (LKR)</th>
+                      <th className="p-3 text-right">Monthly Hire Charge (LKR)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono">
@@ -309,20 +315,46 @@ export function LocalDocumentsModal({
                         </td>
                       </tr>
                     ) : (
-                      invoiceRentals.map(r => (
-                        <tr key={r.machineId}>
-                          <td className="p-3 font-bold text-sky-700">{r.machineCode || 'MCH'}</td>
-                          <td className="p-3 font-sans font-bold text-slate-900">
-                            {r.model}
-                            <span className="text-[10px] text-slate-500 font-mono block">{r.accessories}</span>
-                          </td>
-                          <td className="p-3 text-slate-700">{r.serialNumber || 'Yard Batch'}</td>
-                          <td className="p-3 text-slate-800 font-bold">{r.startDate || '2026-08-01'}</td>
-                          <td className="p-3 text-right font-bold text-slate-900">{formatLKR(r.rentRate)}</td>
-                        </tr>
-                      ))
+                      invoiceRentals.map(r => {
+                        const effectiveRent = getRentForMonth(r, activeInvoiceYM);
+                        const fullRent = Number(r.rentRate) || 0;
+                        const proration = getProrationDetails(r, activeInvoiceYM);
+                        const isProrated = Boolean(proration && effectiveRent !== fullRent);
+
+                        return (
+                          <tr key={r.machineId}>
+                            <td className="p-3 font-bold text-sky-700">{r.machineCode || 'MCH'}</td>
+                            <td className="p-3 font-sans font-bold text-slate-900">
+                              {r.model}
+                              <span className="text-xs text-slate-500 font-mono block font-normal">{r.accessories}</span>
+                            </td>
+                            <td className="p-3 text-slate-700">{r.serialNumber || 'Yard Batch'}</td>
+                            <td className="p-3 text-slate-800 font-bold">{r.startDate || '2026-08-01'}</td>
+                            <td className="p-3 text-right font-bold text-slate-900">
+                              <div>{formatLKR(effectiveRent)}</div>
+                              {isProrated && (
+                                <div className="text-xs font-sans font-semibold text-sky-700 mt-0.5">
+                                  Prorated ({proration.label}) • Full: {formatLKR(fullRent)}/mo
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
+                  {invoiceRentals.length > 0 && (
+                    <tfoot className="bg-slate-50 font-mono text-sm border-t-2 border-slate-300">
+                      <tr>
+                        <td colSpan={4} className="p-3 text-right font-bold text-slate-700 uppercase">
+                          Total {activeInvoiceMonth} Hire Charges:
+                        </td>
+                        <td className="p-3 text-right font-black text-slate-900 text-base">
+                          {formatLKR(currentMonthRent)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
                 </div>{/* overflow-x-auto */}
               </div>
@@ -330,33 +362,33 @@ export function LocalDocumentsModal({
               {/* Previous Months Arrears Breakdown Box (if any) */}
               {arrearsData.breakdown && arrearsData.breakdown.length > 0 && (
                 <div className="p-4 bg-amber-50/70 border border-amber-300 rounded-2xl space-y-2">
-                  <div className="flex justify-between items-center text-xs font-mono">
+                  <div className="flex justify-between items-center text-sm font-mono">
                     <span className="font-bold text-amber-900 uppercase flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-700" />
+                      <Clock className="w-4 h-4 text-amber-700" />
                       <span>Previous Months Arrears Breakdown (Prior Billing Cycles)</span>
                     </span>
                     <span className="font-black text-amber-900">
                       Total Prior Arrears: {formatLKR(netPriorArrears)}
                     </span>
                   </div>
-                  <table className="w-full text-left text-[11px] font-mono border-t border-amber-200">
+                  <table className="w-full text-left text-xs font-mono border-t border-amber-200">
                     <thead>
-                      <tr className="text-amber-800 border-b border-amber-200 text-[10px] uppercase">
-                        <th className="py-1">Cycle Month</th>
-                        <th className="py-1 text-center">Active Machines</th>
-                        <th className="py-1 text-right">Rent Accrued</th>
-                        <th className="py-1 text-right">Paid</th>
-                        <th className="py-1 text-right">Month Arrears</th>
+                      <tr className="text-amber-800 border-b border-amber-200 text-xs uppercase">
+                        <th className="py-1.5">Cycle Month</th>
+                        <th className="py-1.5 text-center">Active Machines</th>
+                        <th className="py-1.5 text-right">Rent Accrued</th>
+                        <th className="py-1.5 text-right">Paid</th>
+                        <th className="py-1.5 text-right">Month Arrears</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-100">
                       {arrearsData.breakdown.map((b, idx) => (
                         <tr key={idx}>
-                          <td className="py-1 font-bold text-amber-950">{b.monthLabel}</td>
-                          <td className="py-1 text-center text-slate-600">{b.machineCount}</td>
-                          <td className="py-1 text-right">{formatLKR(b.monthRent)}</td>
-                          <td className="py-1 text-right text-sky-800">{formatLKR(b.monthPaid)}</td>
-                          <td className={`py-1 text-right font-bold ${b.netArrears > 0 ? 'text-amber-900' : 'text-emerald-700'}`}>
+                          <td className="py-1.5 font-bold text-amber-950">{b.monthLabel}</td>
+                          <td className="py-1.5 text-center text-slate-600">{b.machineCount}</td>
+                          <td className="py-1.5 text-right">{formatLKR(b.monthRent)}</td>
+                          <td className="py-1.5 text-right text-sky-800">{formatLKR(b.monthPaid)}</td>
+                          <td className={`py-1.5 text-right font-bold ${b.netArrears > 0 ? 'text-amber-900' : 'text-emerald-700'}`}>
                             {formatLKR(b.netArrears)}
                           </td>
                         </tr>
@@ -368,16 +400,16 @@ export function LocalDocumentsModal({
 
               {/* Bottom Instructions and Full Financial Calculation */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-2">
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1.5 font-mono flex-1 w-full sm:w-auto">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm space-y-1.5 font-mono flex-1 w-full sm:w-auto">
                   <div className="font-bold text-slate-900 uppercase">Bank Remittance Instructions:</div>
                   <div className="text-slate-700">{bInfo.bankNameEn} — {bInfo.accountName}</div>
                   <div className="font-bold text-blue-700">Account No: {bInfo.accountNo} ({bInfo.branchEn})</div>
-                  <div className="text-[10px] text-slate-500 pt-1">
+                  <div className="text-xs text-slate-500 pt-1">
                     * Please notify remittance via WhatsApp / SMS with Client Code {customer.code}
                   </div>
                 </div>
 
-                <div className="w-full sm:w-80 space-y-1.5 text-right font-mono text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div className="w-full sm:w-96 space-y-1.5 text-right font-mono text-sm bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   {carriedBase > 0 && (
                     <div className="flex justify-between py-1 border-b border-slate-200 text-slate-600">
                       <span>Carried Arrears (Base):</span>
@@ -406,7 +438,7 @@ export function LocalDocumentsModal({
                     <span>Total Paid ({activeInvoiceMonth}):</span>
                     <span className="font-bold">- {formatLKR(currentMonthPaid)}</span>
                   </div>
-                  <div className={`flex justify-between py-2 text-base font-black border-t-2 border-slate-900 ${totalBalanceDue > 0 ? 'text-rose-700' : totalBalanceDue < 0 ? 'text-emerald-700' : 'text-slate-900'}`}>
+                  <div className={`flex justify-between py-2 text-lg font-black border-t-2 border-slate-900 ${totalBalanceDue > 0 ? 'text-rose-700' : totalBalanceDue < 0 ? 'text-emerald-700' : 'text-slate-900'}`}>
                     <span>{totalBalanceDue < 0 ? 'Advance / Excess Paid:' : 'Total Balance Due:'}</span>
                     <span>{totalBalanceDue < 0 ? `- ${formatLKR(Math.abs(totalBalanceDue))}` : formatLKR(totalBalanceDue)}</span>
                   </div>
@@ -417,13 +449,13 @@ export function LocalDocumentsModal({
 
           {/* ================= 2. FULL FORMAL RENTAL AGREEMENT (EDITABLE) ================= */}
           {type === 'AGREEMENT' && customer && (
-            <div className="space-y-5 text-xs">
-              <div className="text-center pb-2 border-b border-slate-200 font-bold uppercase text-slate-800 tracking-wider">
+            <div className="space-y-5 text-sm">
+              <div className="text-center pb-2 border-b border-slate-200 font-bold uppercase text-slate-800 tracking-wider text-base">
                 COMMERCIAL INDUSTRIAL MACHINERY HIRING & LEASE AGREEMENT
               </div>
 
               {isEditingAgreement && (
-                <div className="no-print p-3 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-800 font-mono">
+                <div className="no-print p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800 font-mono">
                   ℹ️ <strong>Agreement Edit Mode Active:</strong> You can edit any field, legal covenant, or term below. Changes reflect immediately in this document and when printed.
                 </div>
               )}
@@ -435,79 +467,93 @@ export function LocalDocumentsModal({
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                   <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-500 font-mono block">Lessor (Machinery Provider):</span>
+                    <span className="text-xs font-bold uppercase text-slate-500 font-mono block">Lessor (Machinery Provider):</span>
                     {isEditingAgreement ? (
                       <input
                         type="text"
                         value={agreementData.lessorName}
                         onChange={(e) => setAgreementData({ ...agreementData, lessorName: e.target.value })}
-                        className="w-full p-1.5 border border-slate-300 rounded font-bold text-slate-900 text-xs"
+                        className="w-full p-1.5 border border-slate-300 rounded font-bold text-slate-900 text-sm"
                       />
                     ) : (
-                      <div className="font-bold text-slate-900">{agreementData.lessorName}</div>
+                      <div className="font-bold text-slate-900 text-base">{agreementData.lessorName}</div>
                     )}
-                    <div className="text-slate-600 text-[11px] mt-0.5">{agreementData.lessorAddress}</div>
+                    <div className="text-slate-600 text-xs mt-0.5">{agreementData.lessorAddress}</div>
                   </div>
 
                   <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-500 font-mono block">Lessee (Apparel Manufacturer):</span>
+                    <span className="text-xs font-bold uppercase text-slate-500 font-mono block">Lessee (Apparel Manufacturer):</span>
                     {isEditingAgreement ? (
                       <div className="space-y-1">
                         <input
                           type="text"
                           value={agreementData.lesseeName}
                           onChange={(e) => setAgreementData({ ...agreementData, lesseeName: e.target.value })}
-                          className="w-full p-1.5 border border-slate-300 rounded font-bold text-slate-900 text-xs"
+                          className="w-full p-1.5 border border-slate-300 rounded font-bold text-slate-900 text-sm"
                         />
                         <input
                           type="text"
                           placeholder="NIC / Reg #"
                           value={agreementData.lesseeNic}
                           onChange={(e) => setAgreementData({ ...agreementData, lesseeNic: e.target.value })}
-                          className="w-full p-1 border border-slate-300 rounded text-slate-700 text-[11px]"
+                          className="w-full p-1 border border-slate-300 rounded text-slate-700 text-xs"
                         />
                       </div>
                     ) : (
                       <div>
-                        <div className="font-bold text-slate-900">{agreementData.lesseeName}</div>
-                        <div className="text-slate-600 text-[11px]">NIC / Factory Reg: {agreementData.lesseeNic}</div>
+                        <div className="font-bold text-slate-900 text-base">{agreementData.lesseeName}</div>
+                        <div className="text-slate-600 text-xs">NIC / Factory Reg: {agreementData.lesseeNic}</div>
                       </div>
                     )}
-                    <div className="text-slate-600 text-[11px] mt-0.5">{agreementData.lesseeAddress}</div>
+                    <div className="text-slate-600 text-xs mt-0.5">{agreementData.lesseeAddress}</div>
                   </div>
                 </div>
               </div>
 
               {/* Machinery Schedule Table */}
               <div>
-                <span className="text-[11px] font-bold uppercase font-mono text-slate-700 block mb-1">
+                <span className="text-xs font-bold uppercase font-mono text-slate-700 block mb-1.5">
                   Schedule A: Machinery Fleet Allocation & Monthly Hire
                 </span>
-                <table className="w-full text-left text-xs border border-slate-300 rounded-xl overflow-hidden">
-                  <thead className="bg-slate-100 text-slate-700 font-mono text-[10px] uppercase border-b border-slate-300">
+                <table className="w-full text-left text-sm border border-slate-300 rounded-xl overflow-hidden">
+                  <thead className="bg-slate-100 text-slate-700 font-mono text-xs uppercase border-b border-slate-300">
                     <tr>
-                      <th className="p-2.5">Code</th>
-                      <th className="p-2.5">Model Description</th>
-                      <th className="p-2.5">Serial # (SN)</th>
-                      <th className="p-2.5">Commence Date</th>
-                      <th className="p-2.5 text-right">Agreed Monthly Hire</th>
+                      <th className="p-3">Code</th>
+                      <th className="p-3">Model Description</th>
+                      <th className="p-3">Serial # (SN)</th>
+                      <th className="p-3">Commence Date</th>
+                      <th className="p-3 text-right">Agreed Monthly Hire</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono">
-                    {(customer.rentals || []).filter(r => r.status === 'Active').map(r => (
-                      <tr key={r.machineId}>
-                        <td className="p-2.5 font-bold text-sky-700">{r.machineCode}</td>
-                        <td className="p-2.5 font-bold font-sans text-slate-900">{r.model}</td>
-                        <td className="p-2.5">{r.serialNumber}</td>
-                        <td className="p-2.5">{r.startDate || '2026-08-01'}</td>
-                        <td className="p-2.5 text-right font-bold text-slate-900">{formatLKR(r.rentRate)}</td>
-                      </tr>
-                    ))}
+                    {(customer.rentals || []).filter(r => r.status === 'Active').map(r => {
+                      const startYM = getDateYearMonth(r.startDate || '2026-01-01');
+                      const startProration = getProrationDetails(r, startYM);
+                      const firstMonthRent = getRentForMonth(r, startYM);
+                      const fullRent = Number(r.rentRate) || 0;
+
+                      return (
+                        <tr key={r.machineId}>
+                          <td className="p-3 font-bold text-sky-700">{r.machineCode}</td>
+                          <td className="p-3 font-bold font-sans text-slate-900">{r.model}</td>
+                          <td className="p-3">{r.serialNumber}</td>
+                          <td className="p-3">{r.startDate || '2026-08-01'}</td>
+                          <td className="p-3 text-right font-bold text-slate-900">
+                            <div>{formatLKR(fullRent)}</div>
+                            {startProration && firstMonthRent !== fullRent && (
+                              <div className="text-xs font-sans font-semibold text-sky-700">
+                                1st Mo Prorated: {formatLKR(firstMonthRent)} ({startProration.label})
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
-                  <tfoot className="bg-slate-50 font-mono text-xs border-t border-slate-300">
+                  <tfoot className="bg-slate-50 font-mono text-sm border-t border-slate-300">
                     <tr>
-                      <td colSpan={4} className="p-2.5 text-right font-bold text-slate-700">Total Monthly Hire Commitment:</td>
-                      <td className="p-2.5 text-right font-black text-emerald-800">
+                      <td colSpan={4} className="p-3 text-right font-bold text-slate-700">Total Monthly Hire Commitment:</td>
+                      <td className="p-3 text-right font-black text-emerald-800 text-base">
                         {formatLKR((customer.rentals || []).filter(r => r.status === 'Active').reduce((s, r) => s + (Number(r.rentRate) || 0), 0))}
                       </td>
                     </tr>
@@ -516,9 +562,9 @@ export function LocalDocumentsModal({
               </div>
 
               {/* Agreement Duration & Terms */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-[11px] p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-xs p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
                 <div>
-                  <span className="text-slate-500 uppercase font-bold block text-[10px]">Agreement Period:</span>
+                  <span className="text-slate-500 uppercase font-bold block text-xs">Agreement Period:</span>
                   {isEditingAgreement ? (
                     <input
                       type="text"
@@ -527,11 +573,11 @@ export function LocalDocumentsModal({
                       className="w-full p-1 border border-slate-300 rounded font-bold text-slate-900"
                     />
                   ) : (
-                    <span className="font-bold text-slate-900">{agreementData.period}</span>
+                    <span className="font-bold text-slate-900 text-sm">{agreementData.period}</span>
                   )}
                 </div>
                 <div>
-                  <span className="text-slate-500 uppercase font-bold block text-[10px]">Payment Terms:</span>
+                  <span className="text-slate-500 uppercase font-bold block text-xs">Payment Terms:</span>
                   {isEditingAgreement ? (
                     <input
                       type="text"
@@ -540,14 +586,14 @@ export function LocalDocumentsModal({
                       className="w-full p-1 border border-slate-300 rounded font-bold text-slate-900"
                     />
                   ) : (
-                    <span className="font-bold text-slate-900">{agreementData.paymentTerms}</span>
+                    <span className="font-bold text-slate-900 text-sm">{agreementData.paymentTerms}</span>
                   )}
                 </div>
               </div>
 
               {/* Legal Clauses & Covenants */}
-              <div className="space-y-1.5 text-[11px] text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 font-sans leading-relaxed">
-                <div className="font-bold text-slate-900 uppercase font-mono text-xs mb-1">
+              <div className="space-y-1.5 text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 font-sans leading-relaxed">
+                <div className="font-bold text-slate-900 uppercase font-mono text-sm mb-1">
                   Key Legal Clauses & Service Covenants:
                 </div>
                 {isEditingAgreement ? (
@@ -555,10 +601,10 @@ export function LocalDocumentsModal({
                     rows={6}
                     value={agreementData.clauses}
                     onChange={(e) => setAgreementData({ ...agreementData, clauses: e.target.value })}
-                    className="w-full p-2 border border-slate-300 rounded text-xs text-slate-900 font-mono leading-normal"
+                    className="w-full p-2 border border-slate-300 rounded text-sm text-slate-900 font-mono leading-normal"
                   />
                 ) : (
-                  <div className="whitespace-pre-line text-slate-800">
+                  <div className="whitespace-pre-line text-slate-800 text-sm">
                     {agreementData.clauses}
                   </div>
                 )}
@@ -568,34 +614,34 @@ export function LocalDocumentsModal({
 
           {/* ================= 3. EQUIPMENT DELIVERY NOTE ================= */}
           {type === 'DELIVERY' && customer && (
-            <div className="space-y-5 text-xs">
+            <div className="space-y-5 text-sm">
               <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono">
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Delivery Destination (Lessee):</span>
-                  <div className="font-bold text-slate-900 text-sm font-sans">{customer.name}</div>
+                  <span className="text-xs text-slate-500 uppercase block font-bold">Delivery Destination (Lessee):</span>
+                  <div className="font-bold text-slate-900 text-base font-sans">{customer.name}</div>
                   <div className="text-slate-600">{customer.address} • Contact: {customer.phone}</div>
-                  <div className="text-[10px] text-sky-700 font-bold mt-1">Client Code: {customer.code}</div>
+                  <div className="text-xs text-sky-700 font-bold mt-1">Client Code: {customer.code}</div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Transport & Dispatch Logistics:</span>
+                  <span className="text-xs text-slate-500 uppercase block font-bold">Transport & Dispatch Logistics:</span>
                   <div className="font-bold text-slate-900">Vehicle: WP-ND-4521 (Isuzu Lorry)</div>
                   <div className="text-slate-600">Origin: Kosgama Central Yard Fleet Hub</div>
-                  <div className="text-[10px] text-emerald-700 font-bold mt-1">
+                  <div className="text-xs text-emerald-700 font-bold mt-1">
                     {singleRental ? 'Single Machine Dedicated Handover' : `Consortium Dispatch (${deliveryRentals.length} Units)`}
                   </div>
                 </div>
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-300">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-slate-700 font-mono text-[10px] uppercase border-b border-slate-300">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100 text-slate-700 font-mono text-xs uppercase border-b border-slate-300">
                   <tr>
-                    <th className="p-2.5">Code</th>
-                    <th className="p-2.5">Machinery Description</th>
-                    <th className="p-2.5">Asset Serial Number (SN)</th>
-                    <th className="p-2.5">Delivered Date</th>
-                    <th className="p-2.5">Delivery Status</th>
-                    <th className="p-2.5">Included Attachments</th>
+                    <th className="p-3">Code</th>
+                    <th className="p-3">Machinery Description</th>
+                    <th className="p-3">Asset Serial Number (SN)</th>
+                    <th className="p-3">Delivered Date</th>
+                    <th className="p-3">Delivery Status</th>
+                    <th className="p-3">Included Attachments</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-mono">
@@ -608,16 +654,16 @@ export function LocalDocumentsModal({
                   ) : (
                     deliveryRentals.map(r => (
                       <tr key={r.machineId}>
-                        <td className="p-2.5 font-bold text-sky-700">{r.machineCode || 'MCH'}</td>
-                        <td className="p-2.5 font-sans font-bold text-slate-900">{r.model}</td>
-                        <td className="p-2.5 text-slate-800 font-bold">{r.serialNumber || 'Yard Batch'}</td>
-                        <td className="p-2.5 text-emerald-700 font-bold">{r.deliveredDate || r.startDate || new Date().toISOString().slice(0, 10)}</td>
-                        <td className="p-2.5 text-center">
-                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase border border-emerald-300">
+                        <td className="p-3 font-bold text-sky-700">{r.machineCode || 'MCH'}</td>
+                        <td className="p-3 font-sans font-bold text-slate-900">{r.model}</td>
+                        <td className="p-3 text-slate-800 font-bold">{r.serialNumber || 'Yard Batch'}</td>
+                        <td className="p-3 text-emerald-700 font-bold">{r.deliveredDate || r.startDate || new Date().toISOString().slice(0, 10)}</td>
+                        <td className="p-3 text-center">
+                          <span className="px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold uppercase border border-emerald-300">
                             {r.deliveryStatus || 'Handovered'}
                           </span>
                         </td>
-                        <td className="p-2.5 text-slate-600 font-sans">{r.accessories || 'Complete Set'}</td>
+                        <td className="p-3 text-slate-600 font-sans">{r.accessories || 'Complete Set'}</td>
                       </tr>
                     ))
                   )}
@@ -625,7 +671,7 @@ export function LocalDocumentsModal({
               </table>
               </div>{/* overflow-x-auto */}
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-[11px] leading-relaxed">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs leading-relaxed">
                 <strong>Handover Acknowledgment:</strong> All machinery units listed above have been inspected on-site by the Lessee's technical representative, tested for correct stitch execution, and accepted in fully operational condition together with stand, table, and specified drive systems.
               </div>
             </div>
@@ -633,79 +679,93 @@ export function LocalDocumentsModal({
 
           {/* ================= 4. COMPREHENSIVE RENTAL STATEMENT OF ACCOUNT ================= */}
           {type === 'STATEMENT' && customer && (
-            <div className="space-y-6 text-xs">
+            <div className="space-y-6 text-sm">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-200 font-mono">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Client Account:</span>
-                  <div className="font-extrabold text-sm text-slate-900 font-sans">{customer.name}</div>
+                  <span className="text-xs font-bold text-slate-500 uppercase block">Client Account:</span>
+                  <div className="font-extrabold text-base text-slate-900 font-sans">{customer.name}</div>
                   <div className="text-slate-600">Code: {customer.code} • Contact: {customer.phone}</div>
                   <div className="text-slate-600">{customer.address}</div>
                 </div>
                 <div className="sm:text-right">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Account Status:</span>
-                  <div className="font-black text-sm text-emerald-700">
+                  <span className="text-xs font-bold text-slate-500 uppercase block">Account Status:</span>
+                  <div className="font-black text-base text-emerald-700">
                     {customer.isArchived ? 'Closed Account' : 'Active Leasing Partner'}
                   </div>
-                  <div className="text-slate-600 text-[11px]">As of: {new Date().toISOString().slice(0, 10)}</div>
+                  <div className="text-slate-600 text-xs">Cycle: {activeInvoiceMonth} • As of: {new Date().toISOString().slice(0, 10)}</div>
                 </div>
               </div>
 
               {/* Financial Position Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 font-mono text-center">
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="text-[10px] text-slate-500 uppercase block">Opening Balance</span>
-                  <span className="font-bold text-amber-700 text-sm">{formatLKR(customer.baseOpeningBalance || 0)}</span>
+                  <span className="text-xs text-slate-500 uppercase block">Opening Balance</span>
+                  <span className="font-bold text-amber-700 text-base">{formatLKR(customer.baseOpeningBalance || 0)}</span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="text-[10px] text-slate-500 uppercase block">Active Fleet</span>
-                  <span className="font-bold text-slate-900 text-sm">
+                  <span className="text-xs text-slate-500 uppercase block">Active Fleet</span>
+                  <span className="font-bold text-slate-900 text-base">
                     {(customer.rentals || []).filter(r => r.status === 'Active').length} Units
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="text-[10px] text-slate-500 uppercase block">Total Payments Received</span>
-                  <span className="font-bold text-sky-700 text-sm">{formatLKR(totalPaymentsReceivedAllTime)}</span>
+                  <span className="text-xs text-slate-500 uppercase block">Total Payments Received</span>
+                  <span className="font-bold text-sky-700 text-base">{formatLKR(totalPaymentsReceivedAllTime)}</span>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="text-[10px] text-slate-500 uppercase block">Net Balance Due</span>
-                  <span className="font-black text-rose-700 text-sm">{formatLKR(customer.currentBalance || 0)}</span>
+                  <span className="text-xs text-slate-500 uppercase block">Net Balance Due</span>
+                  <span className="font-black text-rose-700 text-base">{formatLKR(customer.currentBalance ?? totalBalanceDue ?? 0)}</span>
                 </div>
               </div>
 
               {/* Allocated Machinery Fleet */}
               <div>
-                <span className="text-[11px] font-bold uppercase font-mono text-slate-700 block mb-1">
-                  1. Current Machinery Fleet Allocation
+                <span className="text-xs font-bold uppercase font-mono text-slate-700 block mb-1.5">
+                  1. Current Machinery Fleet Allocation ({activeInvoiceMonth})
                 </span>
                 <div className="overflow-x-auto rounded-xl border border-slate-300">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-700 font-mono text-[10px] uppercase border-b border-slate-300">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100 text-slate-700 font-mono text-xs uppercase border-b border-slate-300">
                     <tr>
-                      <th className="p-2.5">Code</th>
-                      <th className="p-2.5">Model Description</th>
-                      <th className="p-2.5">Serial #</th>
-                      <th className="p-2.5">Start Date</th>
-                      <th className="p-2.5 text-center">Delivery Status</th>
-                      <th className="p-2.5 text-right">Monthly Hire</th>
+                      <th className="p-3">Code</th>
+                      <th className="p-3">Model Description</th>
+                      <th className="p-3">Serial #</th>
+                      <th className="p-3">Start Date</th>
+                      <th className="p-3 text-center">Delivery Status</th>
+                      <th className="p-3 text-right">Monthly Hire</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono">
-                    {(customer.rentals || []).map(r => (
-                      <tr key={r.machineId}>
-                        <td className="p-2.5 font-bold text-sky-700">{r.machineCode}</td>
-                        <td className="p-2.5 font-sans font-bold text-slate-900">{r.model}</td>
-                        <td className="p-2.5">{r.serialNumber}</td>
-                        <td className="p-2.5">{r.startDate || '2026-08-01'}</td>
-                        <td className="p-2.5 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            r.deliveryStatus === 'Handovered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {r.deliveryStatus || 'Ongoing'}
-                          </span>
-                        </td>
-                        <td className="p-2.5 text-right font-bold text-slate-900">{formatLKR(r.rentRate)}</td>
-                      </tr>
-                    ))}
+                    {(customer.rentals || []).map(r => {
+                      const effectiveRent = getRentForMonth(r, activeInvoiceYM);
+                      const fullRent = Number(r.rentRate) || 0;
+                      const proration = getProrationDetails(r, activeInvoiceYM);
+                      const isProrated = Boolean(proration && effectiveRent !== fullRent);
+
+                      return (
+                        <tr key={r.machineId}>
+                          <td className="p-3 font-bold text-sky-700">{r.machineCode}</td>
+                          <td className="p-3 font-sans font-bold text-slate-900">{r.model}</td>
+                          <td className="p-3">{r.serialNumber}</td>
+                          <td className="p-3">{r.startDate || '2026-08-01'}</td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                              r.deliveryStatus === 'Handovered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {r.deliveryStatus || 'Ongoing'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right font-bold text-slate-900">
+                            <div>{formatLKR(effectiveRent)}</div>
+                            {isProrated && (
+                              <div className="text-xs font-sans font-semibold text-sky-700 mt-0.5">
+                                Prorated ({proration.label}) • Full: {formatLKR(fullRent)}/mo
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 </div>{/* overflow-x-auto fleet */}
@@ -713,18 +773,18 @@ export function LocalDocumentsModal({
 
               {/* Payment Remittance History */}
               <div>
-                <span className="text-[11px] font-bold uppercase font-mono text-slate-700 block mb-1">
+                <span className="text-xs font-bold uppercase font-mono text-slate-700 block mb-1.5">
                   2. Payment & Remittance Receipts Ledger
                 </span>
                 <div className="overflow-x-auto rounded-xl border border-slate-300">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-700 font-mono text-[10px] uppercase border-b border-slate-300">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100 text-slate-700 font-mono text-xs uppercase border-b border-slate-300">
                     <tr>
-                      <th className="p-2.5">Payment Date</th>
-                      <th className="p-2.5">Receipt #</th>
-                      <th className="p-2.5">Method</th>
-                      <th className="p-2.5">Target Month</th>
-                      <th className="p-2.5 text-right">Amount Received</th>
+                      <th className="p-3">Payment Date</th>
+                      <th className="p-3">Receipt #</th>
+                      <th className="p-3">Method</th>
+                      <th className="p-3">Target Month</th>
+                      <th className="p-3 text-right">Amount Received</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono">
@@ -737,11 +797,11 @@ export function LocalDocumentsModal({
                     ) : (
                       customerPayments.map(p => (
                         <tr key={p.id}>
-                          <td className="p-2.5 font-bold text-slate-900">{p.date}</td>
-                          <td className="p-2.5 text-sky-700">{p.refNo || p.id}</td>
-                          <td className="p-2.5 text-slate-600">{p.method}</td>
-                          <td className="p-2.5 text-slate-800">{p.month}</td>
-                          <td className="p-2.5 text-right font-bold text-emerald-700">{formatLKR(p.amount)}</td>
+                          <td className="p-3 font-bold text-slate-900">{p.date}</td>
+                          <td className="p-3 text-sky-700">{p.refNo || p.id}</td>
+                          <td className="p-3 text-slate-600">{p.method}</td>
+                          <td className="p-3 text-slate-800">{p.month}</td>
+                          <td className="p-3 text-right font-bold text-emerald-700">{formatLKR(p.amount)}</td>
                         </tr>
                       ))
                     )}
@@ -751,14 +811,14 @@ export function LocalDocumentsModal({
               </div>
 
               {/* Bank Remittance Details */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 font-mono text-xs">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 font-mono text-sm">
                 <div>
-                  <span className="font-bold text-slate-800 uppercase block text-[10px]">Bank Remittance Account:</span>
+                  <span className="font-bold text-slate-800 uppercase block text-xs">Bank Remittance Account:</span>
                   <span className="text-slate-700">{bInfo.bankNameEn} — A/C: {bInfo.accountNo} ({bInfo.branchEn})</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-500 uppercase block">Total Net Balance Due:</span>
-                  <span className="font-black text-rose-700 text-base">{formatLKR(customer.currentBalance || 0)}</span>
+                  <span className="text-xs text-slate-500 uppercase block">Total Net Balance Due:</span>
+                  <span className="font-black text-rose-700 text-lg">{formatLKR(customer.currentBalance ?? totalBalanceDue ?? 0)}</span>
                 </div>
               </div>
             </div>
@@ -766,47 +826,47 @@ export function LocalDocumentsModal({
 
           {/* ================= 5. OFFICIAL PAYMENT RECEIPT ================= */}
           {type === 'RECEIPT' && payment && (
-            <div className="space-y-4 text-xs">
+            <div className="space-y-4 text-sm">
               <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-300 text-center space-y-2">
-                <div className="text-xs uppercase font-bold text-emerald-800 font-mono tracking-wider">
+                <div className="text-sm uppercase font-bold text-emerald-800 font-mono tracking-wider">
                   Amount Received with Thanks
                 </div>
-                <div className="text-3xl font-black font-mono text-emerald-700">
+                <div className="text-4xl font-black font-mono text-emerald-700">
                   {formatLKR(payment.amount)}
                 </div>
-                <div className="text-xs italic text-emerald-900 font-serif">
+                <div className="text-sm italic text-emerald-900 font-serif">
                   ({numberToWordsLKR(payment.amount)})
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-xs p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-sm p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Received From:</span>
-                  <span className="font-bold text-slate-900 font-sans text-sm">{payment.customerName || customer?.name}</span>
+                  <span className="text-slate-500 block text-xs uppercase font-bold">Received From:</span>
+                  <span className="font-bold text-slate-900 font-sans text-base">{payment.customerName || customer?.name}</span>
                   {customer?.code && (
-                    <span className="text-[11px] text-sky-700 block mt-0.5">Client Code: {customer.code}</span>
+                    <span className="text-xs text-sky-700 block mt-0.5">Client Code: {customer.code}</span>
                   )}
                   {payment.month && (
-                    <span className="text-[11px] text-emerald-800 font-bold block mt-1">
+                    <span className="text-xs text-emerald-800 font-bold block mt-1">
                       Applied Billing Cycle: {payment.month}
                     </span>
                   )}
                 </div>
                 <div className="sm:text-right">
-                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Method & Reference:</span>
+                  <span className="text-slate-500 block text-xs uppercase font-bold">Payment Method & Reference:</span>
                   <span className="font-bold text-slate-900">{payment.method}</span>
-                  <span className="text-[11px] text-slate-600 block mt-0.5">Ref No: {payment.refNo || payment.id}</span>
-                  <span className="text-[11px] text-slate-500 block mt-0.5">Payment Date: {payment.date}</span>
+                  <span className="text-xs text-slate-600 block mt-0.5">Ref No: {payment.refNo || payment.id}</span>
+                  <span className="text-xs text-slate-500 block mt-0.5">Payment Date: {payment.date}</span>
                 </div>
               </div>
 
               {/* Remarks / Settlement Details */}
               {payment.remarks && (
-                <div className="p-4 bg-emerald-50/70 rounded-xl border border-emerald-200 text-xs font-mono space-y-1">
-                  <span className="text-[10px] text-emerald-900 uppercase font-bold block tracking-wider">
+                <div className="p-4 bg-emerald-50/70 rounded-xl border border-emerald-200 text-sm font-mono space-y-1">
+                  <span className="text-xs text-emerald-900 uppercase font-bold block tracking-wider">
                     Payment Remarks / Settlement Details:
                   </span>
-                  <p className="text-slate-800 font-sans text-xs leading-relaxed">
+                  <p className="text-slate-800 font-sans text-sm leading-relaxed">
                     {payment.remarks}
                   </p>
                 </div>
@@ -816,8 +876,8 @@ export function LocalDocumentsModal({
 
           {/* ================= 6. YARD RETURN NOTE ================= */}
           {type === 'RETURN' && (
-            <div className="space-y-4 text-xs">
-              <div className="p-4 bg-amber-50 rounded-xl border border-amber-300 font-mono text-xs">
+            <div className="space-y-4 text-sm">
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-300 font-mono text-sm">
                 <div className="font-bold text-amber-900 uppercase">Machinery Return & Fleet De-Hire Authorization</div>
                 <div className="text-amber-800 mt-1">
                   Client: <strong>{customer?.name}</strong> • Return Slip: <strong>{meta?.slipNo}</strong>
@@ -825,27 +885,27 @@ export function LocalDocumentsModal({
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-300">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-slate-700 font-mono text-[10px] uppercase border-b border-slate-300">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100 text-slate-700 font-mono text-xs uppercase border-b border-slate-300">
                   <tr>
-                    <th className="p-2.5">Model Description</th>
-                    <th className="p-2.5">Serial (SN)</th>
-                    <th className="p-2.5 text-right">Relieved Monthly Hire</th>
+                    <th className="p-3">Model Description</th>
+                    <th className="p-3">Serial (SN)</th>
+                    <th className="p-3 text-right">Relieved Monthly Hire</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-mono">
                   {(returnedMachines || []).map((m, idx) => (
                     <tr key={idx}>
-                      <td className="p-2.5 font-bold font-sans text-slate-900">{m.model}</td>
-                      <td className="p-2.5">{m.serialNumber}</td>
-                      <td className="p-2.5 text-right font-bold text-emerald-700">{formatLKR(m.rentRate)}</td>
+                      <td className="p-3 font-bold font-sans text-slate-900">{m.model}</td>
+                      <td className="p-3">{m.serialNumber}</td>
+                      <td className="p-3 text-right font-bold text-emerald-700">{formatLKR(m.rentRate)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               </div>{/* overflow-x-auto return */}
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-xs space-y-1">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 font-mono text-sm space-y-1">
                 <div>Inspection Yard Condition: <strong className="text-slate-900">{meta?.condition || 'Operational'}</strong></div>
                 <div>Inspector Notes: <span className="text-slate-700">{meta?.remarks || 'Motor, table and stand verified intact'}</span></div>
               </div>
@@ -854,22 +914,22 @@ export function LocalDocumentsModal({
 
           {/* ================= 7. INDUSTRIAL RENTAL QUOTATION ================= */}
           {type === 'QUOTATION' && quotation && (
-            <div className="space-y-4 text-xs">
+            <div className="space-y-4 text-sm">
               <div className="p-4 bg-sky-50 rounded-xl border border-sky-200 flex flex-col sm:flex-row justify-between gap-3 font-mono">
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Quotation For:</span>
-                  <div className="font-bold text-slate-900 text-sm font-sans">{quotation.customerName || "Garment Manufacturer"}</div>
+                  <span className="text-xs text-slate-500 uppercase block font-bold">Quotation For:</span>
+                  <div className="font-bold text-slate-900 text-base font-sans">{quotation.customerName || "Garment Manufacturer"}</div>
                   <div className="text-slate-600">{quotation.address} • {quotation.phone}</div>
                 </div>
                 <div className="sm:text-right">
-                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Quote Validity:</span>
-                  <div className="font-bold text-slate-900">{quotation.validDays || 14} Days</div>
+                  <span className="text-xs text-slate-500 uppercase block font-bold">Quote Validity:</span>
+                  <div className="font-bold text-slate-900 text-base">{quotation.validDays || 14} Days</div>
                 </div>
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-300">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-slate-700 font-mono text-[10px] uppercase border-b border-slate-300">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100 text-slate-700 font-mono text-xs uppercase border-b border-slate-300">
                   <tr>
                     <th className="p-3">Model Description</th>
                     <th className="p-3">Motor Spec</th>
@@ -879,15 +939,19 @@ export function LocalDocumentsModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-mono">
-                  {(quotation.items || []).map((it, idx) => (
-                    <tr key={idx}>
-                      <td className="p-3 font-bold font-sans text-slate-900">{it.description}</td>
-                      <td className="p-3 text-slate-600">{it.motorSpec}</td>
-                      <td className="p-3 text-center font-bold">{it.qty}</td>
-                      <td className="p-3 text-right">{formatLKR(it.rate)}</td>
-                      <td className="p-3 text-right font-bold text-slate-900">{formatLKR(it.qty * it.rate)}</td>
-                    </tr>
-                  ))}
+                  {(quotation.items || []).map((it, idx) => {
+                    const unitRate = Number(it.rate ?? it.rentRate ?? 0);
+                    const qty = Number(it.qty) || 1;
+                    return (
+                      <tr key={idx}>
+                        <td className="p-3 font-bold font-sans text-slate-900">{it.description || it.model}</td>
+                        <td className="p-3 text-slate-600">{it.motorSpec}</td>
+                        <td className="p-3 text-center font-bold">{qty}</td>
+                        <td className="p-3 text-right">{formatLKR(unitRate)}</td>
+                        <td className="p-3 text-right font-bold text-slate-900">{formatLKR(qty * unitRate)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               </div>{/* overflow-x-auto quotation */}
@@ -896,16 +960,16 @@ export function LocalDocumentsModal({
 
           {/* ================= 8. PARTNER STATEMENT ================= */}
           {type === 'PARTNER_STATEMENT' && partner && (
-            <div className="space-y-4 text-xs font-mono">
+            <div className="space-y-4 text-sm font-mono">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between">
                 <div>
-                  <span className="text-slate-500 uppercase block text-[10px] font-bold">Partner Entity:</span>
-                  <div className="font-bold text-slate-900 text-sm font-sans">{partner.name}</div>
+                  <span className="text-slate-500 uppercase block text-xs font-bold">Partner Entity:</span>
+                  <div className="font-bold text-slate-900 text-base font-sans">{partner.name}</div>
                   <div className="text-slate-600">{partner.address} • Contact: {partner.contactPerson}</div>
                 </div>
                 <div className="text-right">
-                  <span className="text-slate-500 uppercase block text-[10px] font-bold">Balance Payable:</span>
-                  <div className="text-lg font-black text-amber-700">{formatLKR(balanceDue)}</div>
+                  <span className="text-slate-500 uppercase block text-xs font-bold">Balance Payable:</span>
+                  <div className="text-xl font-black text-amber-700">{formatLKR(balanceDue)}</div>
                 </div>
               </div>
             </div>
@@ -913,15 +977,15 @@ export function LocalDocumentsModal({
 
           {/* ================= 9, 10. PARTNER INVOICE / RETURN / VOUCHER ================= */}
           {(type === 'PARTNER_INVOICE' || type === 'PARTNER_RETURN' || type === 'PARTNER_PAYMENT_VOUCHER') && (
-            <div className="space-y-4 text-xs font-mono">
+            <div className="space-y-4 text-sm font-mono">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between">
                 <div>
-                  <span className="text-slate-500 uppercase block text-[10px] font-bold">Partner Account:</span>
-                  <div className="font-bold text-slate-900 text-sm font-sans">{partner?.name}</div>
+                  <span className="text-slate-500 uppercase block text-xs font-bold">Partner Account:</span>
+                  <div className="font-bold text-slate-900 text-base font-sans">{partner?.name}</div>
                 </div>
                 <div className="text-right">
-                  <span className="text-slate-500 uppercase block text-[10px] font-bold">Amount:</span>
-                  <div className="text-xl font-black text-slate-900">
+                  <span className="text-slate-500 uppercase block text-xs font-bold">Amount:</span>
+                  <div className="text-2xl font-black text-slate-900">
                     {formatLKR(purchase?.total || returnItem?.total || payment?.amount)}
                   </div>
                 </div>
@@ -931,59 +995,73 @@ export function LocalDocumentsModal({
 
           {/* ================= 11. RENTAL PARTNER SETTLEMENT INVOICE ================= */}
           {type === 'RENTAL_SETTLEMENT_INVOICE' && partner && (
-            <div className="space-y-5 text-xs font-sans">
+            <div className="space-y-5 text-sm font-sans">
               {/* Partner & billing header */}
               <div className="grid grid-cols-2 gap-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-amber-700 block mb-1">Invoice To (Payable to):</span>
-                  <div className="font-black text-slate-900 text-sm">{partner.name}</div>
-                  <div className="text-slate-600 text-[11px] mt-0.5">{partner.code}</div>
-                  <div className="text-slate-600 text-[11px]">{partner.address || 'Sri Lanka'}</div>
-                  <div className="text-slate-600 text-[11px]">Contact: {partner.contactPerson || 'Director'} • {partner.phone || 'N/A'}</div>
+                  <span className="text-xs uppercase font-bold text-amber-700 block mb-1">Invoice To (Payable to):</span>
+                  <div className="font-black text-slate-900 text-base">{partner.name}</div>
+                  <div className="text-slate-600 text-xs mt-0.5">{partner.code}</div>
+                  <div className="text-slate-600 text-xs">{partner.address || 'Sri Lanka'}</div>
+                  <div className="text-slate-600 text-xs">Contact: {partner.contactPerson || 'Director'} • {partner.phone || 'N/A'}</div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-amber-700 block mb-1">Billing Cycle:</span>
-                  <div className="font-black text-slate-900 text-base">{meta?.cycleMonth || month || 'Current Month'}</div>
-                  <div className="text-slate-600 text-[11px] mt-1">Invoice Ref: {`SINV-${partner.code}-${String(meta?.cycleMonth || month || '').replace(/\s+/g,'').toUpperCase()}`}</div>
-                  <div className="text-slate-600 text-[11px]">Issued: {new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'long',year:'numeric'})}</div>
+                  <span className="text-xs uppercase font-bold text-amber-700 block mb-1">Billing Cycle:</span>
+                  <div className="font-black text-slate-900 text-lg">{meta?.cycleMonth || month || 'Current Month'}</div>
+                  <div className="text-slate-600 text-xs mt-1">Invoice Ref: {`SINV-${partner.code}-${String(meta?.cycleMonth || month || '').replace(/\s+/g,'').toUpperCase()}`}</div>
+                  <div className="text-slate-600 text-xs">Issued: {new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'long',year:'numeric'})}</div>
                 </div>
               </div>
 
               {/* Sub-leased machinery table */}
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-500 mb-1.5 tracking-wider">Sub-Leased Machinery — Monthly Hire Charges</div>
+                <div className="text-xs uppercase font-bold text-slate-500 mb-1.5 tracking-wider">Sub-Leased Machinery — Monthly Hire Charges</div>
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-left text-[11px]">
-                    <thead className="bg-amber-50 text-slate-600 font-bold uppercase text-[10px] border-b border-amber-100">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-amber-50 text-slate-600 font-bold uppercase text-xs border-b border-amber-100">
                       <tr>
-                        <th className="p-2.5">Machine Code</th>
-                        <th className="p-2.5">Model / Description</th>
-                        <th className="p-2.5">S/N</th>
-                        <th className="p-2.5">Deployed Client</th>
-                        <th className="p-2.5">Start Date</th>
-                        <th className="p-2.5 text-right">Monthly Rate (LKR)</th>
+                        <th className="p-3">Machine Code</th>
+                        <th className="p-3">Model / Description</th>
+                        <th className="p-3">S/N</th>
+                        <th className="p-3">Deployed Client</th>
+                        <th className="p-3">Start Date</th>
+                        <th className="p-3 text-right">Monthly Rate (LKR)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(meta?.sourcedMachines || []).length === 0 ? (
                         <tr><td colSpan={6} className="p-3 text-center text-slate-400">No active machinery sourced from this partner for this billing cycle.</td></tr>
                       ) : (
-                        (meta?.sourcedMachines || []).map((m, i) => (
-                          <tr key={i} className="hover:bg-slate-50">
-                            <td className="p-2.5 font-mono font-bold text-amber-800">{m.machineCode || m.partnerMachineCode}</td>
-                            <td className="p-2.5 font-bold text-slate-900">{m.model}</td>
-                            <td className="p-2.5 font-mono text-sky-700">{m.serialNumber}</td>
-                            <td className="p-2.5 text-slate-700">{m.customerName}</td>
-                            <td className="p-2.5 font-mono text-slate-500">{m.startDate}</td>
-                            <td className="p-2.5 text-right font-bold text-slate-900">{formatLKR(m.partnerRentRate || 0)}</td>
-                          </tr>
-                        ))
+                        (meta?.sourcedMachines || []).map((m, i) => {
+                          const effectivePartnerCost = getPartnerRentForMonth(m, settlementYM);
+                          const fullPartnerCost = Number(m.partnerRentRate) || 0;
+                          const proration = getProrationDetails(m, settlementYM);
+                          const isProrated = Boolean(proration && effectivePartnerCost !== fullPartnerCost);
+
+                          return (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="p-3 font-mono font-bold text-amber-800">{m.machineCode || m.partnerMachineCode}</td>
+                              <td className="p-3 font-bold text-slate-900">{m.model}</td>
+                              <td className="p-3 font-mono text-sky-700">{m.serialNumber}</td>
+                              <td className="p-3 text-slate-700">{m.customerName}</td>
+                              <td className="p-3 font-mono text-slate-500">{m.startDate}</td>
+                              <td className="p-3 text-right font-bold text-slate-900">
+                                <div>{formatLKR(effectivePartnerCost)}</div>
+                                {isProrated && (
+                                  <div className="text-xs font-normal text-sky-700">
+                                    Prorated ({proration.label}) • Full: {formatLKR(fullPartnerCost)}/mo
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                     <tfoot className="bg-amber-50 border-t-2 border-amber-300 font-bold text-sm">
                       <tr>
-                        <td colSpan={5} className="p-3 text-right text-amber-800 uppercase tracking-wider text-[11px]">Total Monthly Hire Due to Partner:</td>
-                        <td className="p-3 text-right text-amber-900 font-black text-base">{formatLKR(meta?.cyclePartnerRent || 0)}</td>
+                        <td colSpan={5} className="p-3 text-right text-amber-800 uppercase tracking-wider text-xs">Total Monthly Hire Due to Partner:</td>
+                        <td className="p-3 text-right text-amber-900 font-black text-lg">{formatLKR(meta?.cyclePartnerRent || 0)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -993,21 +1071,21 @@ export function LocalDocumentsModal({
               {/* Summary box */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
-                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-2">Account Summary</div>
-                  <div className="flex justify-between text-[11px]"><span className="text-slate-600">Prior Carried Arrears:</span><span className="font-bold text-amber-700">{formatLKR(meta?.priorArrears || 0)}</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="text-slate-600">This Cycle Hire Charge:</span><span className="font-bold text-slate-900">{formatLKR(meta?.cyclePartnerRent || 0)}</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="text-slate-600">Payments Made This Cycle:</span><span className="font-bold text-sky-700">- {formatLKR(meta?.cyclePaid || 0)}</span></div>
-                  <div className="border-t border-slate-300 pt-1.5 flex justify-between font-black text-sm"><span className="text-amber-800">Balance Due to Partner:</span><span className={meta?.cycleBalanceDue > 0 ? 'text-rose-700' : 'text-emerald-700'}>{formatLKR(meta?.cycleBalanceDue || 0)}</span></div>
+                  <div className="text-xs uppercase font-bold text-slate-500 mb-2">Account Summary</div>
+                  <div className="flex justify-between text-xs"><span className="text-slate-600">Prior Carried Arrears:</span><span className="font-bold text-amber-700">{formatLKR(meta?.priorArrears || 0)}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-slate-600">This Cycle Hire Charge:</span><span className="font-bold text-slate-900">{formatLKR(meta?.cyclePartnerRent || 0)}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-slate-600">Payments Made This Cycle:</span><span className="font-bold text-sky-700">- {formatLKR(meta?.cyclePaid || 0)}</span></div>
+                  <div className="border-t border-slate-300 pt-1.5 flex justify-between font-black text-base"><span className="text-amber-800">Balance Due to Partner:</span><span className={meta?.cycleBalanceDue > 0 ? 'text-rose-700' : 'text-emerald-700'}>{formatLKR(meta?.cycleBalanceDue || 0)}</span></div>
                 </div>
                 <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-1 flex flex-col justify-center items-center text-center">
-                  <div className="text-[10px] uppercase font-bold text-amber-700">Net Balance Payable</div>
+                  <div className="text-xs uppercase font-bold text-amber-700">Net Balance Payable</div>
                   <div className={`text-3xl font-black mt-1 ${(meta?.cycleBalanceDue || 0) > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{formatLKR(meta?.cycleBalanceDue || 0)}</div>
-                  <div className="text-[10px] text-slate-500 mt-1">Please settle by end of billing cycle</div>
+                  <div className="text-xs text-slate-500 mt-1">Please settle by end of billing cycle</div>
                 </div>
               </div>
 
               {/* Payment instructions */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[10px] font-mono text-slate-600">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs font-mono text-slate-600">
                 <span className="font-bold text-slate-800 block mb-1 uppercase tracking-wider">Settlement Instructions (Our Bank):</span>
                 Bank: Bank Of Ceylon | Account: Anujaya Enterprises | A/C No: 94459826 | Branch: Ruwanwella
               </div>
@@ -1016,30 +1094,30 @@ export function LocalDocumentsModal({
 
           {/* ================= 12. RENTAL PARTNER SETTLEMENT STATEMENT ================= */}
           {type === 'RENTAL_SETTLEMENT_STATEMENT' && partner && (
-            <div className="space-y-5 text-xs font-sans">
+            <div className="space-y-5 text-sm font-sans">
               {/* Partner info */}
               <div className="grid grid-cols-2 gap-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-amber-700 block mb-1">Partner Company:</span>
-                  <div className="font-black text-slate-900 text-sm">{partner.name}</div>
-                  <div className="text-slate-600 text-[11px] mt-0.5">{partner.code} • {partner.phone || 'N/A'}</div>
-                  <div className="text-slate-600 text-[11px]">{partner.address || 'Sri Lanka'}</div>
-                  <div className="text-slate-600 text-[11px]">Contact: {partner.contactPerson || 'Director'}</div>
+                  <span className="text-xs uppercase font-bold text-amber-700 block mb-1">Partner Company:</span>
+                  <div className="font-black text-slate-900 text-base">{partner.name}</div>
+                  <div className="text-slate-600 text-xs mt-0.5">{partner.code} • {partner.phone || 'N/A'}</div>
+                  <div className="text-slate-600 text-xs">{partner.address || 'Sri Lanka'}</div>
+                  <div className="text-slate-600 text-xs">Contact: {partner.contactPerson || 'Director'}</div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-amber-700 block mb-1">Statement Reference:</span>
+                  <span className="text-xs uppercase font-bold text-amber-700 block mb-1">Statement Reference:</span>
                   <div className="font-black text-slate-900">{`RSTMT-${partner.code}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`}</div>
-                  <div className="text-slate-600 text-[11px] mt-1">Generated: {new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'long',year:'numeric'})}</div>
-                  <div className="text-[11px] font-bold text-amber-700 mt-2">All-Time Balance Due: {formatLKR(meta?.allTimeBalanceDue || 0)}</div>
+                  <div className="text-slate-600 text-xs mt-1">Generated: {new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'long',year:'numeric'})}</div>
+                  <div className="text-xs font-bold text-amber-700 mt-2">All-Time Balance Due: {formatLKR(meta?.allTimeBalanceDue || 0)}</div>
                 </div>
               </div>
 
               {/* Active fleet summary */}
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-500 mb-1.5 tracking-wider">Sub-Leased Fleet Overview</div>
+                <div className="text-xs uppercase font-bold text-slate-500 mb-1.5 tracking-wider">Sub-Leased Fleet Overview</div>
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-left text-[11px]">
-                    <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] border-b border-slate-200">
+                  <table className="w-full text-left text-[13px]">
+                    <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs border-b border-slate-200">
                       <tr>
                         <th className="p-2.5">Machine Code</th>
                         <th className="p-2.5">Model</th>
@@ -1055,22 +1133,39 @@ export function LocalDocumentsModal({
                       {(meta?.sourcedMachines || []).length === 0 ? (
                         <tr><td colSpan={8} className="p-3 text-center text-slate-400">No machinery records for this partner.</td></tr>
                       ) : (
-                        (meta?.sourcedMachines || []).map((m, i) => (
-                          <tr key={i} className={m.status === 'Returned' ? 'bg-slate-50' : ''}>
-                            <td className="p-2.5 font-mono font-bold text-amber-800">{m.machineCode || m.partnerMachineCode}</td>
-                            <td className="p-2.5 font-bold text-slate-900">{m.model}</td>
-                            <td className="p-2.5 font-mono text-sky-700">{m.serialNumber}</td>
-                            <td className="p-2.5 text-slate-700">{m.customerName}</td>
-                            <td className="p-2.5 font-mono text-slate-500">{m.startDate}</td>
-                            <td className="p-2.5 text-center">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${m.status === 'Returned' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                                {m.status === 'Returned' ? `Returned ${m.returnDate||''}` : 'Active'}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-right font-bold text-amber-800">{formatLKR(m.partnerRentRate || 0)}</td>
-                            <td className="p-2.5 text-right font-bold text-emerald-700">{formatLKR(m.rentRate || 0)}</td>
-                          </tr>
-                        ))
+                        (meta?.sourcedMachines || []).map((m, i) => {
+                          const startYM = getDateYearMonth(m.startDate || '2026-01-01');
+                          const startProration = getProrationDetails(m, startYM);
+                          const proratedPartnerFirst = startProration ? getPartnerRentForMonth(m, startYM) : null;
+                          const proratedClientFirst = startProration ? getRentForMonth(m, startYM) : null;
+
+                          return (
+                            <tr key={i} className={m.status === 'Returned' ? 'bg-slate-50' : ''}>
+                              <td className="p-2.5 font-mono font-bold text-amber-800">{m.machineCode || m.partnerMachineCode}</td>
+                              <td className="p-2.5 font-bold text-slate-900">{m.model}</td>
+                              <td className="p-2.5 font-mono text-sky-700">{m.serialNumber}</td>
+                              <td className="p-2.5 text-slate-700">{m.customerName}</td>
+                              <td className="p-2.5 font-mono text-slate-500">{m.startDate}</td>
+                              <td className="p-2.5 text-center">
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${m.status === 'Returned' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                  {m.status === 'Returned' ? `Returned ${m.returnDate||''}` : 'Active'}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-right font-bold text-amber-800">
+                                <div>{formatLKR(m.partnerRentRate || 0)}</div>
+                                {startProration && proratedPartnerFirst !== Number(m.partnerRentRate || 0) && (
+                                  <div className="text-[11px] font-normal text-sky-700">1st mo: {formatLKR(proratedPartnerFirst)}</div>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-right font-bold text-emerald-700">
+                                <div>{formatLKR(m.rentRate || 0)}</div>
+                                {startProration && proratedClientFirst !== Number(m.rentRate || 0) && (
+                                  <div className="text-[11px] font-normal text-sky-700">1st mo: {formatLKR(proratedClientFirst)}</div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -1079,10 +1174,10 @@ export function LocalDocumentsModal({
 
               {/* Payments history */}
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-500 mb-1.5 tracking-wider">Settlement Payments History</div>
+                <div className="text-xs uppercase font-bold text-slate-500 mb-1.5 tracking-wider">Settlement Payments History</div>
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-left text-[11px]">
-                    <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] border-b border-slate-200">
+                  <table className="w-full text-left text-[13px]">
+                    <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs border-b border-slate-200">
                       <tr>
                         <th className="p-2.5">Date</th>
                         <th className="p-2.5">Billing Cycle</th>
@@ -1110,8 +1205,8 @@ export function LocalDocumentsModal({
                     </tbody>
                     <tfoot className="bg-slate-100 border-t-2 border-slate-300 font-bold">
                       <tr>
-                        <td colSpan={5} className="p-2.5 text-right text-[11px] text-slate-700 uppercase">Total Settled All-Time:</td>
-                        <td className="p-2.5 text-right font-black text-emerald-800">{formatLKR(meta?.allTimePaid || 0)}</td>
+                        <td colSpan={5} className="p-2.5 text-right text-xs text-slate-700 uppercase">Total Settled All-Time:</td>
+                        <td className="p-2.5 text-right font-black text-emerald-800 text-base">{formatLKR(meta?.allTimePaid || 0)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1120,13 +1215,13 @@ export function LocalDocumentsModal({
 
               {/* Balance summary */}
               <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 flex justify-between items-center">
-                <div className="space-y-1 text-[11px]">
+                <div className="space-y-1 text-xs">
                   <div className="flex gap-6"><span className="text-slate-600">Active Machines:</span><span className="font-bold text-emerald-700">{(meta?.sourcedMachines||[]).filter(m=>m.status!=='Returned').length} Units</span></div>
                   <div className="flex gap-6"><span className="text-slate-600">Returned Machines:</span><span className="font-bold text-amber-700">{(meta?.sourcedMachines||[]).filter(m=>m.status==='Returned').length} Units</span></div>
                   <div className="flex gap-6"><span className="text-slate-600">Opening Balance:</span><span className="font-bold">{formatLKR(partner.baseOpeningBalance||0)}</span></div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] uppercase font-bold text-amber-700 mb-1">Net Balance Payable (Live)</div>
+                  <div className="text-xs uppercase font-bold text-amber-700 mb-1">Net Balance Payable (Live)</div>
                   <div className={`text-3xl font-black ${(meta?.allTimeBalanceDue||0)>0?'text-rose-700':'text-emerald-700'}`}>{formatLKR(meta?.allTimeBalanceDue||0)}</div>
                 </div>
               </div>
@@ -1137,7 +1232,7 @@ export function LocalDocumentsModal({
           <div className="pt-10 flex justify-between items-end border-t border-slate-200">
             <div className="text-center w-48 space-y-2">
               <div className="h-10 border-b border-slate-400"></div>
-              <div className="text-[10px] font-mono text-slate-600 uppercase font-bold">
+              <div className="text-xs font-mono text-slate-600 uppercase font-bold">
                 {type === 'AGREEMENT' ? 'Lessee Acceptance' : 'Client Signature'}
               </div>
             </div>
@@ -1148,7 +1243,7 @@ export function LocalDocumentsModal({
 
             <div className="text-center w-56 space-y-2">
               <div className="h-10 border-b border-slate-400"></div>
-              <div className="text-[10px] font-mono text-slate-600 uppercase font-bold">
+              <div className="text-xs font-mono text-slate-600 uppercase font-bold">
                 Kosgama Central Base Authorization
               </div>
             </div>

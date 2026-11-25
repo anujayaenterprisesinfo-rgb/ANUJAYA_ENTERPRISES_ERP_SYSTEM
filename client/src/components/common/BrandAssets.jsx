@@ -55,7 +55,7 @@ export function MockBarcode({ code = "AE-DOC-2026" }) {
         <rect x="93" y="0" width="4" height="22" fill="#0f172a" />
         <rect x="98" y="0" width="2" height="22" fill="#0f172a" />
       </svg>
-      <span className="font-mono text-[8px] text-slate-500 tracking-widest uppercase mt-0.5">{code}</span>
+      <span className="font-mono text-[10px] text-slate-500 tracking-widest uppercase mt-0.5">{code}</span>
     </div>
   );
 }
@@ -63,11 +63,11 @@ export function MockBarcode({ code = "AE-DOC-2026" }) {
 export function OfficialSealStamp() {
   return (
     <div className="relative inline-flex items-center justify-center p-1.5 border-2 border-emerald-600 rounded-full text-emerald-700 font-mono rotate-[-5deg] select-none opacity-90 shadow-sm bg-white">
-      <div className="border border-dashed border-emerald-500 rounded-full px-3 py-2 text-center">
-        <div className="text-[8px] font-black tracking-widest uppercase text-emerald-800">ANUJAYA ENTERPRISES</div>
-        <div className="text-[7px] font-bold text-slate-800">★ CERTIFIED INDUSTRIAL YARD ★</div>
-        <div className="text-[7px] font-extrabold text-emerald-800 tracking-wider">KOSGAMA CENTRAL BASE</div>
-        <div className="text-[6px] text-slate-500 font-mono uppercase tracking-widest">OFFICIALLY VERIFIED</div>
+      <div className="border border-dashed border-emerald-500 rounded-full px-3.5 py-2 text-center">
+        <div className="text-[10px] font-black tracking-widest uppercase text-emerald-800">ANUJAYA ENTERPRISES</div>
+        <div className="text-[9px] font-bold text-slate-800">★ CERTIFIED INDUSTRIAL YARD ★</div>
+        <div className="text-[9px] font-extrabold text-emerald-800 tracking-wider">KOSGAMA CENTRAL BASE</div>
+        <div className="text-[8px] text-slate-500 font-mono uppercase tracking-widest">OFFICIALLY VERIFIED</div>
       </div>
     </div>
   );

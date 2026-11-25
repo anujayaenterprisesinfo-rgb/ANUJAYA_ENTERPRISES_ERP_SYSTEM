@@ -552,7 +552,12 @@ export function LocalRentalPartners({
                         </tr>
                       ) : (
                         partner.sourcedMachines.map(m => {
-                          const margin = (Number(m.rentRate) || 0) - (Number(m.partnerRentRate) || 0);
+                          const effectivePartnerCost = getPartnerRentForMonth(m, currentYM);
+                          const effectiveClientRent = getRentForMonth(m, currentYM);
+                          const fullPartnerCost = Number(m.partnerRentRate) || 0;
+                          const fullClientRent = Number(m.rentRate) || 0;
+                          const isProrated = m.isProratedFirstMonth && (effectivePartnerCost !== fullPartnerCost || effectiveClientRent !== fullClientRent);
+                          const margin = effectiveClientRent - effectivePartnerCost;
 
                           return (
                             <tr key={m.machineId} className="hover:bg-carbon-800/40 transition">
@@ -578,10 +583,20 @@ export function LocalRentalPartners({
                                 )}
                               </td>
                               <td className="px-3.5 py-2.5 text-right font-bold text-amber-300">
-                                {formatLKR(m.partnerRentRate)}
+                                {formatLKR(effectivePartnerCost)}
+                                {isProrated && (
+                                  <span className="text-[9px] text-slate-400 block font-normal">
+                                    Prorated (Full: {formatLKR(fullPartnerCost)}/mo)
+                                  </span>
+                                )}
                               </td>
                               <td className="px-3.5 py-2.5 text-right font-bold text-emerald-400">
-                                {formatLKR(m.rentRate)}
+                                {formatLKR(effectiveClientRent)}
+                                {isProrated && (
+                                  <span className="text-[9px] text-slate-400 block font-normal">
+                                    Prorated (Full: {formatLKR(fullClientRent)}/mo)
+                                  </span>
+                                )}
                               </td>
                               <td className={`px-3.5 py-2.5 text-right font-bold ${margin >= 0 ? 'text-teal-400' : 'text-rose-400'}`}>
                                 {margin >= 0 ? `+${formatLKR(margin)}` : formatLKR(margin)}
@@ -615,7 +630,7 @@ export function LocalRentalPartners({
                           partner,
                           meta: {
                             cycleMonth: `${selectedMonth} ${selectedYear}`,
-                            sourcedMachines: partner.sourcedMachines,
+                            sourcedMachines: partner.cycleActiveMachines,
                             cyclePartnerRent: partner.cyclePartnerRent,
                             priorArrears: partner.priorArrears,
                             cyclePaid: partner.cyclePaid,

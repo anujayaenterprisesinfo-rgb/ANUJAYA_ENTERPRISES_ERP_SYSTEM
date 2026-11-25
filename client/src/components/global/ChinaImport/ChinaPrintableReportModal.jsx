@@ -112,30 +112,30 @@ export function ChinaPrintableReportModal({ isOpen, shipment, onClose }) {
         <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-900/60 print:p-0 print:bg-white print:overflow-visible">
           <div 
             id="printable-document" 
-            className="w-full max-w-[210mm] mx-auto bg-white text-slate-900 p-8 sm:p-10 rounded-2xl shadow-2xl print:shadow-none print:rounded-none print:p-6 print:m-0 border border-slate-200 print:border-none font-sans"
+            className="w-full max-w-[210mm] mx-auto bg-white text-slate-900 p-8 sm:p-10 rounded-2xl shadow-2xl print:shadow-none print:rounded-none print:p-6 print:m-0 border border-slate-200 print:border-none font-sans text-sm"
           >
             {/* Header / Brand */}
             <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
               <div className="flex items-center gap-4">
                 <CompanyLogo className="w-16 h-16 flex-shrink-0" />
                 <div>
-                  <h1 className="font-display font-black text-2xl tracking-tight text-slate-950 uppercase">
+                  <h1 className="font-display font-black text-3xl tracking-tight text-slate-950 uppercase">
                     ANUJAYA ENTERPRISES
                   </h1>
-                  <p className="text-[11px] font-semibold text-slate-600 tracking-wide">
+                  <p className="text-xs font-semibold text-slate-600 tracking-wide">
                     INDUSTRIAL APPAREL MACHINERY CONSORTIUM & GLOBAL IMPORT LOGISTICS
                   </p>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
                     200/2B/1, Pahala Kosgama, Kosgama, Sri Lanka • Hotline: 077 412 7702 • Reg: PV/WP/78412
                   </p>
                 </div>
               </div>
 
               <div className="text-right flex flex-col items-end">
-                <span className="px-2.5 py-1 bg-slate-950 text-white font-mono font-bold text-[10px] uppercase rounded">
+                <span className="px-2.5 py-1 bg-slate-950 text-white font-mono font-bold text-xs uppercase rounded">
                   FINANCIAL AUDIT STATEMENT
                 </span>
-                <span className="font-mono text-xs font-bold text-slate-800 mt-1">
+                <span className="font-mono text-sm font-bold text-slate-800 mt-1">
                   REF: {shipment.shipmentNo}
                 </span>
                 <MockBarcode code={shipment.shipmentNo} />
@@ -143,117 +143,117 @@ export function ChinaPrintableReportModal({ isOpen, shipment, onClose }) {
             </div>
 
             {/* Document Title Banner */}
-            <div className="my-5 p-3.5 bg-slate-100 rounded-xl border border-slate-300 flex items-center justify-between">
+            <div className="my-5 p-4 bg-slate-100 rounded-xl border border-slate-300 flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-500 block">
                   Subject Document
                 </span>
-                <span className="font-bold text-base text-slate-950">
+                <span className="font-bold text-lg text-slate-950">
                   China Import Shipment & Joint Venture Settlement Reconciliation
                 </span>
               </div>
-              <div className="text-right font-mono text-xs text-slate-700">
+              <div className="text-right font-mono text-sm text-slate-700">
                 <span>Date: <strong>{new Date().toISOString().slice(0, 10)}</strong></span>
-                <span className="block text-[10px] text-slate-500">Status: {shipment.status.toUpperCase()}</span>
+                <span className="block text-xs text-slate-500">Status: {shipment.status.toUpperCase()}</span>
               </div>
             </div>
 
             {/* Shipment Metadata 4-Column Grid */}
-            <div className="grid grid-cols-4 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs mb-5 font-mono">
+            <div className="grid grid-cols-4 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm mb-5 font-mono">
               <div>
-                <span className="text-[10px] text-slate-500 block">Shipment / Invoice No:</span>
-                <strong className="text-slate-900 text-sm">{shipment.shipmentNo}</strong>
+                <span className="text-xs text-slate-500 block">Shipment / Invoice No:</span>
+                <strong className="text-slate-900 text-base">{shipment.shipmentNo}</strong>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block">Total Units / Volume:</span>
-                <strong className="text-slate-900 text-sm">{shipment.totalUnits} Units (40HC)</strong>
+                <span className="text-xs text-slate-500 block">Total Units / Volume:</span>
+                <strong className="text-slate-900 text-base">{shipment.totalUnits} Units (40HC)</strong>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block">Container & Carrier:</span>
-                <strong className="text-slate-900 text-[11px] truncate block">
+                <span className="text-xs text-slate-500 block">Container & Carrier:</span>
+                <strong className="text-slate-900 text-xs truncate block">
                   {shipment.containerNo || 'MSKU-9823410'} • {shipment.shippingCarrier || 'Maersk'}
                 </strong>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block">Base Budget USD Rate:</span>
-                <strong className="text-slate-900 text-sm">{shipment.budgetUsdRate || 330} LKR</strong>
+                <span className="text-xs text-slate-500 block">Base Budget USD Rate:</span>
+                <strong className="text-slate-900 text-base">{shipment.budgetUsdRate || 330} LKR</strong>
               </div>
             </div>
 
             {/* 1. Live Executive Financial Position */}
             <div className="mb-6">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2 border-b border-slate-300 pb-1">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-2 border-b border-slate-300 pb-1">
                 1. Executive Financial Position & Cash Flow (LKR)
               </h4>
               <div className="grid grid-cols-5 gap-2 text-center font-mono">
                 <div className="p-2.5 bg-slate-100 rounded-lg border border-slate-200">
-                  <span className="text-[9px] text-slate-500 uppercase block font-bold">Total China Liability</span>
-                  <strong className="text-xs text-slate-950 font-bold block mt-1">
+                  <span className="text-[11px] text-slate-500 uppercase block font-bold">Total China Liability</span>
+                  <strong className="text-sm text-slate-950 font-bold block mt-1">
                     {formatLKR(summary.totalBudgetLkr || 73076096.80)}
                   </strong>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">FOB + Customs Budget</span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">FOB + Customs Budget</span>
                 </div>
 
                 <div className="p-2.5 bg-sky-50 rounded-lg border border-sky-200">
-                  <span className="text-[9px] text-sky-800 uppercase block font-bold">Received from Global</span>
-                  <strong className="text-xs text-sky-900 font-bold block mt-1">
+                  <span className="text-[11px] text-sky-800 uppercase block font-bold">Received from Global</span>
+                  <strong className="text-sm text-sky-900 font-bold block mt-1">
                     {formatLKR(summary.totalReceivedFromGlobal || 0)}
                   </strong>
-                  <span className="text-[9px] text-sky-600 block mt-0.5">Global Apparel Funding</span>
+                  <span className="text-[11px] text-sky-600 block mt-0.5">Global Apparel Funding</span>
                 </div>
 
                 <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200">
-                  <span className="text-[9px] text-emerald-800 uppercase block font-bold">Total Settled to China</span>
-                  <strong className="text-xs text-emerald-950 font-bold block mt-1">
+                  <span className="text-[11px] text-emerald-800 uppercase block font-bold">Total Settled to China</span>
+                  <strong className="text-sm text-emerald-950 font-bold block mt-1">
                     {formatLKR(summary.totalSettledToChinaLkr || 0)}
                   </strong>
-                  <span className="text-[9px] text-emerald-600 block mt-0.5">Wire & Remittances</span>
+                  <span className="text-[11px] text-emerald-600 block mt-0.5">Wire & Remittances</span>
                 </div>
 
                 <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200">
-                  <span className="text-[9px] text-amber-800 uppercase block font-bold">Our Net Contributed</span>
-                  <strong className="text-xs text-amber-950 font-bold block mt-1">
+                  <span className="text-[11px] text-amber-800 uppercase block font-bold">Our Net Contributed</span>
+                  <strong className="text-sm text-amber-950 font-bold block mt-1">
                     {formatLKR(summary.ourNetCashContributedLkr || 0)}
                   </strong>
-                  <span className="text-[9px] text-amber-600 block mt-0.5">Direct Net Outlays</span>
+                  <span className="text-[11px] text-amber-600 block mt-0.5">Direct Net Outlays</span>
                 </div>
 
                 <div className="p-2.5 bg-rose-50 rounded-lg border border-rose-200">
-                  <span className="text-[9px] text-rose-800 uppercase block font-bold">Remaining Due</span>
-                  <strong className="text-xs text-rose-950 font-bold block mt-1">
+                  <span className="text-[11px] text-rose-800 uppercase block font-bold">Remaining Due</span>
+                  <strong className="text-sm text-rose-950 font-bold block mt-1">
                     {formatLKR(summary.remainingTotalLiabilityLkr || 0)}
                   </strong>
-                  <span className="text-[9px] text-rose-600 block mt-0.5">Outstanding Liability</span>
+                  <span className="text-[11px] text-rose-600 block mt-0.5">Outstanding Liability</span>
                 </div>
               </div>
             </div>
 
             {/* 2. Partner Liability & Settlement Share */}
             <div className="mb-6">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2 border-b border-slate-300 pb-1">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-2 border-b border-slate-300 pb-1">
                 2. Partner Liability & Funding Obligations
               </h4>
-              <table className="w-full text-[11px] border border-slate-300 font-mono">
-                <thead className="bg-slate-100 border-b border-slate-300 text-slate-700">
+              <table className="w-full text-[13px] border border-slate-300 font-mono">
+                <thead className="bg-slate-100 border-b border-slate-300 text-slate-700 text-xs">
                   <tr>
-                    <th className="py-1.5 px-2 text-left">Partner Entity</th>
-                    <th className="py-1.5 px-2 text-center">Agreed Ratio</th>
-                    <th className="py-1.5 px-2 text-right">Target Liability (LKR)</th>
-                    <th className="py-1.5 px-2 text-right">Actual Paid (LKR)</th>
-                    <th className="py-1.5 px-2 text-right">Remaining Due (LKR)</th>
-                    <th className="py-1.5 px-2 text-center">Settlement Status</th>
+                    <th className="py-2 px-2 text-left">Partner Entity</th>
+                    <th className="py-2 px-2 text-center">Agreed Ratio</th>
+                    <th className="py-2 px-2 text-right">Target Liability (LKR)</th>
+                    <th className="py-2 px-2 text-right">Actual Paid (LKR)</th>
+                    <th className="py-2 px-2 text-right">Remaining Due (LKR)</th>
+                    <th className="py-2 px-2 text-center">Settlement Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {partners.map((p, idx) => (
                     <tr key={idx}>
-                      <td className="py-1.5 px-2 font-bold text-slate-900">{p.name}</td>
-                      <td className="py-1.5 px-2 text-center font-bold">{(p.agreedRatio * 100).toFixed(1)}%</td>
-                      <td className="py-1.5 px-2 text-right">{formatLKR(p.targetLiabilityLkr)}</td>
-                      <td className="py-1.5 px-2 text-right font-bold text-emerald-700">{formatLKR(p.actualPaidLkr)}</td>
-                      <td className="py-1.5 px-2 text-right font-bold text-rose-700">{formatLKR(p.remainingDueLkr)}</td>
-                      <td className="py-1.5 px-2 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      <td className="py-2 px-2 font-bold text-slate-900">{p.name}</td>
+                      <td className="py-2 px-2 text-center font-bold">{(p.agreedRatio * 100).toFixed(1)}%</td>
+                      <td className="py-2 px-2 text-right">{formatLKR(p.targetLiabilityLkr)}</td>
+                      <td className="py-2 px-2 text-right font-bold text-emerald-700">{formatLKR(p.actualPaidLkr)}</td>
+                      <td className="py-2 px-2 text-right font-bold text-rose-700">{formatLKR(p.remainingDueLkr)}</td>
+                      <td className="py-2 px-2 text-center">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                           p.isFullySettled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
                           {p.statusLabel}
@@ -267,59 +267,59 @@ export function ChinaPrintableReportModal({ isOpen, shipment, onClose }) {
 
             {/* 3. Overseas Friends & Intermediaries Reconciliation */}
             <div className="mb-6">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2 border-b border-slate-300 pb-1">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-2 border-b border-slate-300 pb-1">
                 3. Overseas Intermediary & Friend Reconciliation (Foreign Supplier Settlements)
               </h4>
-              <table className="w-full text-[11px] border border-slate-300 font-mono">
-                <thead className="bg-slate-100 border-b border-slate-300 text-slate-700">
+              <table className="w-full text-[13px] border border-slate-300 font-mono">
+                <thead className="bg-slate-100 border-b border-slate-300 text-slate-700 text-xs">
                   <tr>
-                    <th className="py-1.5 px-2 text-left">Intermediary / Route</th>
-                    <th className="py-1.5 px-2 text-right">Cash Given (LKR)</th>
-                    <th className="py-1.5 px-2 text-right">Foreign Settled</th>
-                    <th className="py-1.5 px-2 text-right">LKR Settled to China</th>
-                    <th className="py-1.5 px-2 text-right">Net Balance (LKR)</th>
-                    <th className="py-1.5 px-2 text-left">Audit Instruction</th>
+                    <th className="py-2 px-2 text-left">Intermediary / Route</th>
+                    <th className="py-2 px-2 text-right">Cash Given (LKR)</th>
+                    <th className="py-2 px-2 text-right">Foreign Settled</th>
+                    <th className="py-2 px-2 text-right">LKR Settled to China</th>
+                    <th className="py-2 px-2 text-right">Net Balance (LKR)</th>
+                    <th className="py-2 px-2 text-left">Audit Instruction</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {intermediaries.map((inter, idx) => (
                     <tr key={idx}>
-                      <td className="py-1.5 px-2 font-bold text-slate-900">
-                        {inter.name} <span className="text-[10px] text-slate-500">({inter.country})</span>
+                      <td className="py-2 px-2 font-bold text-slate-900">
+                        {inter.name} <span className="text-xs text-slate-500">({inter.country})</span>
                       </td>
-                      <td className="py-1.5 px-2 text-right">{formatLKR(inter.totalCashGivenLkr)}</td>
-                      <td className="py-1.5 px-2 text-right font-bold text-slate-800">
+                      <td className="py-2 px-2 text-right">{formatLKR(inter.totalCashGivenLkr)}</td>
+                      <td className="py-2 px-2 text-right font-bold text-slate-800">
                         {inter.foreignAmountSettled.toLocaleString()} {inter.operatingCurrency}
                       </td>
-                      <td className="py-1.5 px-2 text-right font-bold text-emerald-700">
+                      <td className="py-2 px-2 text-right font-bold text-emerald-700">
                         {formatLKR(inter.totalSettledLkr)}
                       </td>
-                      <td className={`py-1.5 px-2 text-right font-bold ${
+                      <td className={`py-2 px-2 text-right font-bold ${
                         inter.netBalanceLkr < 0 ? 'text-rose-700' : (inter.netBalanceLkr > 0 ? 'text-sky-700' : 'text-slate-700')
                       }`}>
                         {formatLKR(inter.netBalanceLkr)}
                       </td>
-                      <td className="py-1.5 px-2 text-[10px] text-slate-700">{inter.actionInstruction}</td>
+                      <td className="py-2 px-2 text-xs text-slate-700">{inter.actionInstruction}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="mt-2 text-right font-mono text-xs">
+              <div className="mt-2 text-right font-mono text-sm">
                 <span className="text-slate-600">Combined Net Payable to Intermediaries: </span>
-                <strong className="text-rose-700 text-sm">
+                <strong className="text-rose-700 text-base">
                   {formatLKR(summary.totalOwedToIntermediariesLkr || 207490)}
                 </strong>
               </div>
             </div>
 
             {/* Signatures & Formal Authorization Block */}
-            <div className="pt-8 border-t border-slate-300 mt-6 grid grid-cols-3 gap-6 text-center text-xs">
+            <div className="pt-8 border-t border-slate-300 mt-6 grid grid-cols-3 gap-6 text-center text-sm">
               <div>
                 <div className="h-14 border-b border-dashed border-slate-400 flex items-end justify-center pb-1">
-                  <span className="font-script text-base text-slate-700">H.M.K. Anujaya</span>
+                  <span className="font-script text-lg text-slate-700">H.M.K. Anujaya</span>
                 </div>
                 <span className="font-bold text-slate-900 block mt-1">Prepared By</span>
-                <span className="text-[10px] text-slate-500 font-mono">Senior Accountant / Finance Lead</span>
+                <span className="text-xs text-slate-500 font-mono">Senior Accountant / Finance Lead</span>
               </div>
 
               <div>
@@ -327,20 +327,20 @@ export function ChinaPrintableReportModal({ isOpen, shipment, onClose }) {
                   <OfficialSealStamp text="ANUJAYA ENTERPRISES AUDITED" className="w-16 h-16 opacity-85" />
                 </div>
                 <span className="font-bold text-slate-900 block mt-1">Internal Audit Certification</span>
-                <span className="text-[10px] text-slate-500 font-mono">Consortium Compliance Desk</span>
+                <span className="text-xs text-slate-500 font-mono">Consortium Compliance Desk</span>
               </div>
 
               <div>
                 <div className="h-14 border-b border-dashed border-slate-400 flex items-end justify-center pb-1">
-                  <span className="font-script text-base text-slate-700">K.A. Anujaya</span>
+                  <span className="font-script text-lg text-slate-700">K.A. Anujaya</span>
                 </div>
                 <span className="font-bold text-slate-900 block mt-1">Authorized Director</span>
-                <span className="text-[10px] text-slate-500 font-mono">Managing Director, Anujaya Enterprises</span>
+                <span className="text-xs text-slate-500 font-mono">Managing Director, Anujaya Enterprises</span>
               </div>
             </div>
 
             {/* Print Footer Notice */}
-            <div className="mt-6 pt-3 border-t border-slate-200 text-[9px] text-slate-400 font-mono flex items-center justify-between">
+            <div className="mt-6 pt-3 border-t border-slate-200 text-xs text-slate-400 font-mono flex items-center justify-between">
               <span>System Verification Hash: SHA256-ANUJAYA-CHINA-{shipment.shipmentNo}</span>
               <span>Generated via Anujaya ERP v3.8 • Confidential Financial Document</span>
             </div>

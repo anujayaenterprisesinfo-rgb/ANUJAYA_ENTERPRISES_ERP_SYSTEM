@@ -66,13 +66,21 @@ async function sendRentalDueAlertEmail({ customer, alertType, daysDiff, dueDate,
   const recipient = customer.email && customer.email.includes('@') ? customer.email : SENDER_EMAIL;
   const isDirectClient = recipient !== SENDER_EMAIL;
 
-  const rentalsListHtml = (activeRentals || []).map(r => `
+  const rentalsListHtml = (activeRentals || []).map(r => {
+    const baseRate = Number(r.rentRate || 0);
+    const effective = r.effectiveRent !== undefined ? Number(r.effectiveRent) : baseRate;
+    const isProrated = r.isProratedFirstMonth && effective !== baseRate;
+    return `
     <tr style="border-bottom: 1px solid #e2e8f0;">
       <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${r.model || 'Industrial Sewing Machine'}</td>
       <td style="padding: 10px 12px; font-family: monospace; color: #475569;">${r.serialNumber || 'Yard Tracked'}</td>
-      <td style="padding: 10px 12px; text-align: right; font-weight: bold; font-family: monospace; color: #0f172a;">Rs. ${Number(r.rentRate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+      <td style="padding: 10px 12px; text-align: right; font-weight: bold; font-family: monospace; color: #0f172a;">
+        Rs. ${effective.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        ${isProrated ? `<div style="font-size: 11px; font-weight: normal; color: #0284c7;">Prorated 1st Month (Full: Rs. ${baseRate.toLocaleString('en-US', { minimumFractionDigits: 2 })}/mo)</div>` : ''}
+      </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const htmlContent = `
     <!DOCTYPE html>

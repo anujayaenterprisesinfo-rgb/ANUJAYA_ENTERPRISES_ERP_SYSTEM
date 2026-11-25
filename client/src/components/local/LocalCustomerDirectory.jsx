@@ -112,6 +112,26 @@ export function isMachineRentedInMonth(rental, ym) {
 }
 
 /**
+ * Return proration details if `ym` is the rental's start month and `isProratedFirstMonth` is enabled
+ * (and start day is after the 1st of the month). Returns null otherwise.
+ */
+export function getProrationDetails(rental, ym) {
+  if (!rental?.isProratedFirstMonth || !rental?.startDate || !ym) return null;
+  const parts = String(rental.startDate).split('-');
+  if (parts.length < 3) return null;
+  const sYear = parseInt(parts[0], 10);
+  const sMonth = parseInt(parts[1], 10) - 1;
+  const sDay = parseInt(parts[2], 10);
+  if (isNaN(sYear) || isNaN(sMonth) || isNaN(sDay)) return null;
+  if (sYear !== ym.year || sMonth !== ym.month) return null;
+
+  const daysInMonth = new Date(ym.year, ym.month + 1, 0).getDate();
+  const remainingDays = Math.max(1, daysInMonth - sDay + 1);
+  if (remainingDays >= daysInMonth) return null;
+  return { remainingDays, daysInMonth, label: `${remainingDays}/${daysInMonth} days` };
+}
+
+/**
  * Calculate the effective rent for a given rental in a specific month,
  * accounting for prorated first-month billing when isProratedFirstMonth is true.
  * For the start month: proratedRent = rentRate × (remainingDays / totalDaysInMonth)
@@ -119,26 +139,9 @@ export function isMachineRentedInMonth(rental, ym) {
  */
 export function getRentForMonth(rental, ym) {
   const fullRate = Number(rental.rentRate) || 0;
-  if (!rental.isProratedFirstMonth) return fullRate;
-
-  // Parse startDate string directly to avoid timezone issues (e.g. "2026-10-15")
-  if (!rental.startDate) return fullRate;
-  const parts = String(rental.startDate).split('-');
-  if (parts.length < 3) return fullRate;
-  const sYear = parseInt(parts[0], 10);
-  const sMonth = parseInt(parts[1], 10) - 1; // 0-indexed
-  const sDay = parseInt(parts[2], 10);
-  if (isNaN(sYear) || isNaN(sMonth) || isNaN(sDay)) return fullRate;
-
-  // Only prorate in the start month
-  if (sYear !== ym.year || sMonth !== ym.month) return fullRate;
-
-  // This IS the start month — prorate
-  const daysInMonth = new Date(ym.year, ym.month + 1, 0).getDate(); // e.g. 31 for October
-  const remainingDays = daysInMonth - sDay + 1; // including start day
-  if (remainingDays >= daysInMonth) return fullRate; // started on 1st = full month
-  const proratedRate = Math.round((fullRate * remainingDays) / daysInMonth);
-  return proratedRate;
+  const info = getProrationDetails(rental, ym);
+  if (!info) return fullRate;
+  return Math.round((fullRate * info.remainingDays) / info.daysInMonth);
 }
 
 /**
@@ -146,23 +149,9 @@ export function getRentForMonth(rental, ym) {
  */
 export function getPartnerRentForMonth(rental, ym) {
   const fullRate = Number(rental.partnerRentRate) || 0;
-  if (!rental.isProratedFirstMonth) return fullRate;
-
-  if (!rental.startDate) return fullRate;
-  const parts = String(rental.startDate).split('-');
-  if (parts.length < 3) return fullRate;
-  const sYear = parseInt(parts[0], 10);
-  const sMonth = parseInt(parts[1], 10) - 1;
-  const sDay = parseInt(parts[2], 10);
-  if (isNaN(sYear) || isNaN(sMonth) || isNaN(sDay)) return fullRate;
-
-  if (sYear !== ym.year || sMonth !== ym.month) return fullRate;
-
-  const daysInMonth = new Date(ym.year, ym.month + 1, 0).getDate();
-  const remainingDays = daysInMonth - sDay + 1;
-  if (remainingDays >= daysInMonth) return fullRate;
-  const proratedRate = Math.round((fullRate * remainingDays) / daysInMonth);
-  return proratedRate;
+  const info = getProrationDetails(rental, ym);
+  if (!info) return fullRate;
+  return Math.round((fullRate * info.remainingDays) / info.daysInMonth);
 }
 
 export function calculateCustomerArrearsBreakdown(customer, payments, activeMonth) {
@@ -250,6 +239,15 @@ function FleetItemEditModal({ item, onClose, onSave }) {
   const [deliveryStatus, setDeliveryStatus] = useState(rental.deliveryStatus || 'Ongoing');
   const [deliveredDate, setDeliveredDate] = useState(rental.deliveredDate || new Date().toISOString().slice(0, 10));
   const [status, setStatus] = useState(rental.status || 'Active');
+  const [isProratedFirstMonth, setIsProratedFirstMonth] = useState(!!rental.isProratedFirstMonth);
+
+  const editStartYM = getDateYearMonth(startDate);
+  const editPreviewProration = isProratedFirstMonth
+    ? getProrationDetails({ isProratedFirstMonth, startDate, rentRate }, editStartYM)
+    : null;
+  const editPreviewRent = editPreviewProration
+    ? getRentForMonth({ isProratedFirstMonth, startDate, rentRate }, editStartYM)
+    : null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -261,6 +259,7 @@ function FleetItemEditModal({ item, onClose, onSave }) {
       rentRate: parseFloat(rentRate) || 0,
       partnerRentRate: (rental.isPartnerMachine || rental.partnerId) ? (parseFloat(partnerRentRate) || 0) : (rental.partnerRentRate || 0),
       startDate,
+      isProratedFirstMonth,
       accessories,
       deliveryStatus,
       deliveredDate: deliveryStatus === 'Handovered' ? (deliveredDate || new Date().toISOString().slice(0, 10)) : (rental.deliveredDate || ''),
@@ -418,6 +417,23 @@ function FleetItemEditModal({ item, onClose, onSave }) {
               <option value="Active">Active Fleet</option>
               <option value="Returned">Returned to Yard</option>
             </select>
+          </div>
+
+          <div className="p-3 bg-carbon-900/80 border border-carbon-700/80 rounded-xl space-y-1">
+            <label className="flex items-center gap-2 font-mono text-[11px] text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isProratedFirstMonth}
+                onChange={(e) => setIsProratedFirstMonth(e.target.checked)}
+                className="rounded bg-carbon-950 border-carbon-700 text-sky-500 focus:ring-0"
+              />
+              <span>Calculate prorated days for the first month</span>
+            </label>
+            {editPreviewProration && (
+              <div className="text-[11px] font-mono text-sky-400 pl-6">
+                1st Month Prorated Charge: <strong>{formatLKR(editPreviewRent)}</strong> ({editPreviewProration.label})
+              </div>
+            )}
           </div>
 
           <div className="pt-3 border-t border-carbon-700 flex justify-end gap-2">
@@ -1110,20 +1126,12 @@ export function LocalCustomerDirectory({
                               // Compute prorated effective rent for display
                               const effectiveRent = getRentForMonth(r, currentYM);
                               const fullRent = Number(r.rentRate) || 0;
-                              const isProrated = r.isProratedFirstMonth && effectiveRent !== fullRent;
+                              const proration = getProrationDetails(r, currentYM);
+                              const isProrated = Boolean(proration && effectiveRent !== fullRent);
                               const effectivePartnerRent = r.isPartnerMachine ? getPartnerRentForMonth(r, currentYM) : 0;
                               const fullPartnerRent = Number(r.partnerRentRate) || 0;
-                              const isPartnerProrated = r.isPartnerMachine && r.isProratedFirstMonth && effectivePartnerRent !== fullPartnerRent;
-
-                              // Calculate prorated days info for tooltip/badge
-                              let proratedDaysInfo = '';
-                              if (isProrated && r.startDate) {
-                                const sdParts = String(r.startDate).split('-');
-                                const sdDay = parseInt(sdParts[2], 10) || 1;
-                                const dim = new Date(currentYM.year, currentYM.month + 1, 0).getDate();
-                                const remaining = dim - sdDay + 1;
-                                proratedDaysInfo = `${remaining}/${dim} days`;
-                              }
+                              const isPartnerProrated = r.isPartnerMachine && Boolean(proration && effectivePartnerRent !== fullPartnerRent);
+                              const proratedDaysInfo = proration ? proration.label : '';
 
                               return (
                                 <tr 
@@ -2017,17 +2025,30 @@ export function LocalCustomerDirectory({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-1 font-mono text-[11px] text-slate-400">
-                <input
-                  type="checkbox"
-                  id="proratedCheck"
-                  checked={newProrated}
-                  onChange={(e) => setNewProrated(e.target.checked)}
-                  className="rounded bg-carbon-950 border-carbon-700 text-sky-500 focus:ring-0"
-                />
-                <label htmlFor="proratedCheck" className="cursor-pointer">
-                  Calculate prorated days for the first month
-                </label>
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
+                  <input
+                    type="checkbox"
+                    id="proratedCheck"
+                    checked={newProrated}
+                    onChange={(e) => setNewProrated(e.target.checked)}
+                    className="rounded bg-carbon-950 border-carbon-700 text-sky-500 focus:ring-0"
+                  />
+                  <label htmlFor="proratedCheck" className="cursor-pointer">
+                    Calculate prorated days for the first month
+                  </label>
+                </div>
+                {newProrated && (() => {
+                  const previewYM = getDateYearMonth(newStartDate);
+                  const previewInfo = getProrationDetails({ isProratedFirstMonth: true, startDate: newStartDate, rentRate: newRentRate }, previewYM);
+                  if (!previewInfo) return null;
+                  const previewAmt = getRentForMonth({ isProratedFirstMonth: true, startDate: newStartDate, rentRate: newRentRate }, previewYM);
+                  return (
+                    <div className="text-[11px] font-mono text-sky-400 pl-6">
+                      1st Month Prorated Charge: <strong>{formatLKR(previewAmt)}</strong> ({previewInfo.label}) — Full rate {formatLKR(Number(newRentRate) || 0)}/mo applies from next month
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="pt-3 border-t border-carbon-700/60 flex items-center justify-end gap-2">

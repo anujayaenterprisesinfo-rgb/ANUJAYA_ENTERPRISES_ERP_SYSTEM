@@ -219,7 +219,10 @@ async function triggerAlertEmailForCustomer(customerId) {
     daysDiff: alertDetails.daysDiff,
     dueDate: alertDetails.dueDate,
     amountDue: alertDetails.totalBalanceDue,
-    activeRentals: alertDetails.activeRentals,
+    activeRentals: (alertDetails.activeRentals || []).map(r => ({
+      ...(r.toObject ? r.toObject() : r),
+      effectiveRent: calculateMachineRentForMonth(r, localConfig.activeMonth || "August 2026")
+    })),
     bankInfo: localConfig.bank
   });
 
